@@ -400,6 +400,7 @@
   let sessionTranscript = [];
   let sessionStartTime = null;
   let timerInterval = null;
+  let reinforceInterval = null;
   let pendingGoodbye = false;
   let costCapTriggered = false;
   let pttMode = false;
@@ -662,6 +663,20 @@
         setTimeout(() => {
           dc.send(JSON.stringify({ type: 'response.create', response: { modalities: ['text', 'audio'] } }));
         }, 350);
+
+        // Periodically re-inject language rule so model doesn't drift as context grows
+        reinforceInterval = setInterval(() => {
+          if (dc && dc.readyState === 'open') {
+            dc.send(JSON.stringify({
+              type: 'conversation.item.create',
+              item: {
+                type: 'message',
+                role: 'system',
+                content: [{ type: 'input_text', text: 'Reminder: speak English. Only 1-2 Portuguese words per response, always with English translation immediately after. Do not switch to full Portuguese sentences.' }],
+              },
+            }));
+          }
+        }, 90000);
       };
 
       dc.onmessage = (e) => {
@@ -728,6 +743,7 @@
   }
 
   function cleanup() {
+    if (reinforceInterval) { clearInterval(reinforceInterval); reinforceInterval = null; }
     if (dc) { try { dc.close(); } catch (e) {} dc = null; }
     if (pc) { try { pc.close(); } catch (e) {} pc = null; }
     if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
