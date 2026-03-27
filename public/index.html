@@ -403,10 +403,10 @@
   let reinforceInterval = null;
 
   const CONFUSION_SIGNALS = [
-    'huh', 'what?', "i don't understand", "i don't get it",
-    'sorry', 'say that again', 'in english', 'english please',
+    "i don't understand", "i don't get it",
+    'in english', 'english please',
     "what does that mean", "what did you say", "come again",
-    "i'm lost", "i'm confused", "slow down", "too fast", "what was that",
+    "i'm lost", "i'm confused", "what was that",
   ];
 
   function checkForConfusion(transcript) {
@@ -421,7 +421,7 @@
         item: {
           type: 'message',
           role: 'system',
-          content: [{ type: 'input_text', text: 'The user is confused. Switch to FULL English immediately. Rephrase what you just said entirely in English. Do not use any Portuguese in your next response. Be natural — just say it again in English as if you caught yourself.' }],
+          content: [{ type: 'input_text', text: 'He didn\'t follow that. Rephrase in plain English, naturally, like you just caught yourself. Keep going with the conversation.' }],
         },
       }));
     }
@@ -691,19 +691,6 @@
           dc.send(JSON.stringify({ type: 'response.create', response: { modalities: ['text', 'audio'] } }));
         }, 350);
 
-        // Periodically re-inject language rule so model doesn't drift as context grows
-        reinforceInterval = setInterval(() => {
-          if (dc && dc.readyState === 'open') {
-            dc.send(JSON.stringify({
-              type: 'conversation.item.create',
-              item: {
-                type: 'message',
-                role: 'system',
-                content: [{ type: 'input_text', text: 'You speak English. Stay in English. Portuguese words only as occasional seasoning — 1 or 2 max, always translated immediately. If you just said something in Portuguese, switch back to English now.' }],
-              },
-            }));
-          }
-        }, 45000);
       };
 
       dc.onmessage = (e) => {
