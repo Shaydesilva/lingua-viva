@@ -17,10 +17,10 @@
       --border: #222;
       --text: #F0F0F0;
       --muted: #666;
-      --accent: #A855F7;
-      --accent2: #EC4899;
-      --user-bubble: #1a1a2e;
-      --luna-bubble: #1a0a2e;
+      --accent: #FF6B4A;
+      --accent2: #FF8C42;
+      --user-bubble: #1a1208;
+      --luna-bubble: #1a0e08;
     }
 
     html, body {
@@ -42,11 +42,12 @@
       padding-right: env(safe-area-inset-right);
     }
 
+    /* ── Header ── */
     header {
       display: flex;
       align-items: center;
-      justify-content: center;
-      padding: 16px 20px 12px;
+      justify-content: space-between;
+      padding: 14px 20px 10px;
       border-bottom: 1px solid var(--border);
       flex-shrink: 0;
     }
@@ -55,7 +56,6 @@
       font-size: 17px;
       font-weight: 600;
       letter-spacing: 0.01em;
-      color: var(--text);
     }
 
     .logo span {
@@ -65,20 +65,68 @@
       background-clip: text;
     }
 
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .timer {
+      font-size: 13px;
+      font-variant-numeric: tabular-nums;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+      min-width: 38px;
+      text-align: right;
+    }
+
+    .timer.active { color: var(--accent); }
+    .timer.warning { color: #f87171; }
+
+    /* PTT toggle pill */
+    .ptt-pill {
+      display: flex;
+      align-items: center;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      padding: 3px;
+      gap: 2px;
+    }
+
+    .ptt-option {
+      padding: 4px 10px;
+      border-radius: 100px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      color: var(--muted);
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    .ptt-option.selected {
+      background: var(--accent);
+      color: white;
+    }
+
+    /* ── Orb ── */
     .orb-area {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 24px 20px 20px;
+      padding: 20px 20px 16px;
       flex-shrink: 0;
-      gap: 14px;
+      gap: 12px;
     }
 
     .orb-wrap {
       position: relative;
-      width: 120px;
-      height: 120px;
+      width: 110px;
+      height: 110px;
     }
 
     .orb-ring {
@@ -89,18 +137,10 @@
       opacity: 0;
       filter: blur(8px);
       transition: opacity 0.6s ease;
-      animation: none;
     }
 
-    .orb-ring.active {
-      opacity: 0.5;
-      animation: spin 4s linear infinite;
-    }
-
-    .orb-ring.speaking {
-      opacity: 0.8;
-      animation: spin 2s linear infinite;
-    }
+    .orb-ring.active  { opacity: 0.45; animation: spin 4s linear infinite; }
+    .orb-ring.speaking { opacity: 0.75; animation: spin 2s linear infinite; }
 
     @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -110,41 +150,27 @@
       width: 100%;
       height: 100%;
       border-radius: 50%;
-      background: radial-gradient(circle at 35% 35%, #2a1040, #0d0d0d);
-      border: 1.5px solid #2a1040;
+      background: radial-gradient(circle at 35% 35%, #2a1208, #0d0d0d);
+      border: 1.5px solid #2a1208;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: transform 0.3s ease, border-color 0.4s ease;
+      transition: border-color 0.4s ease;
     }
 
-    .orb.active {
-      border-color: var(--accent);
-      animation: pulse 2.5s ease-in-out infinite;
-    }
-
-    .orb.speaking {
-      border-color: var(--accent2);
-      animation: pulse-fast 1.2s ease-in-out infinite;
-    }
+    .orb.active   { border-color: var(--accent); animation: pulse 2.5s ease-in-out infinite; }
+    .orb.speaking { border-color: var(--accent2); animation: pulse-fast 1.2s ease-in-out infinite; }
 
     @keyframes pulse {
-      0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(168,85,247,0); }
-      50% { transform: scale(1.04); box-shadow: 0 0 20px 6px rgba(168,85,247,0.18); }
+      0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,107,74,0); }
+      50% { transform: scale(1.04); box-shadow: 0 0 20px 6px rgba(255,107,74,0.2); }
     }
-
     @keyframes pulse-fast {
-      0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(236,72,153,0); }
-      50% { transform: scale(1.06); box-shadow: 0 0 24px 8px rgba(236,72,153,0.22); }
+      0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,140,66,0); }
+      50% { transform: scale(1.06); box-shadow: 0 0 24px 8px rgba(255,140,66,0.25); }
     }
 
-    .orb svg {
-      width: 44px;
-      height: 44px;
-      opacity: 0.6;
-      transition: opacity 0.3s;
-    }
-
+    .orb svg { width: 40px; height: 40px; opacity: 0.5; transition: opacity 0.3s; }
     .orb.active svg, .orb.speaking svg { opacity: 1; }
 
     .status-text {
@@ -155,14 +181,15 @@
       transition: color 0.3s;
     }
 
-    .status-text.active { color: #a78bfa; }
-    .status-text.speaking { color: #f472b6; }
-    .status-text.error { color: #f87171; }
+    .status-text.active   { color: #fb923c; }
+    .status-text.speaking { color: #fbbf24; }
+    .status-text.error    { color: #f87171; }
 
+    /* ── Transcript ── */
     .transcript {
       flex: 1;
       overflow-y: auto;
-      padding: 12px 16px;
+      padding: 10px 16px;
       display: flex;
       flex-direction: column;
       gap: 8px;
@@ -174,37 +201,38 @@
       color: var(--muted);
       font-size: 13px;
       text-align: center;
-      margin-top: 24px;
+      margin-top: 20px;
+      display: block;
     }
 
     .bubble {
       max-width: 82%;
-      padding: 10px 14px;
-      border-radius: 18px;
+      padding: 9px 13px;
+      border-radius: 16px;
       font-size: 14px;
       line-height: 1.45;
       animation: fadeUp 0.2s ease;
     }
 
     @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(6px); }
-      to { opacity: 1; transform: translateY(0); }
+      from { opacity: 0; transform: translateY(5px); }
+      to   { opacity: 1; transform: translateY(0); }
     }
 
     .bubble.user {
       align-self: flex-end;
       background: var(--user-bubble);
-      border: 1px solid #2a2a4a;
-      color: #c4b5fd;
-      border-bottom-right-radius: 6px;
+      border: 1px solid #3a2010;
+      color: #fdba74;
+      border-bottom-right-radius: 4px;
     }
 
     .bubble.luna {
       align-self: flex-start;
       background: var(--luna-bubble);
-      border: 1px solid #3a1a4a;
-      color: #f0abfc;
-      border-bottom-left-radius: 6px;
+      border: 1px solid #3a1a08;
+      color: #fcd34d;
+      border-bottom-left-radius: 4px;
     }
 
     .bubble .speaker {
@@ -212,14 +240,17 @@
       font-weight: 600;
       letter-spacing: 0.06em;
       text-transform: uppercase;
-      opacity: 0.5;
-      margin-bottom: 4px;
+      opacity: 0.45;
+      margin-bottom: 3px;
     }
 
+    /* ── Controls ── */
     .controls {
-      padding: 16px 20px 20px;
+      padding: 12px 20px 16px;
       display: flex;
-      justify-content: center;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
       flex-shrink: 0;
       border-top: 1px solid var(--border);
     }
@@ -227,8 +258,9 @@
     .btn {
       display: flex;
       align-items: center;
+      justify-content: center;
       gap: 10px;
-      padding: 16px 40px;
+      padding: 15px 40px;
       border-radius: 100px;
       border: none;
       font-size: 16px;
@@ -238,15 +270,17 @@
       -webkit-tap-highlight-color: transparent;
       outline: none;
       letter-spacing: 0.01em;
+      width: 100%;
+      max-width: 320px;
     }
 
-    .btn:active { transform: scale(0.96); }
-    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.38; cursor: not-allowed; }
 
     .btn-start {
       background: linear-gradient(135deg, var(--accent), var(--accent2));
       color: white;
-      box-shadow: 0 4px 24px rgba(168,85,247,0.3);
+      box-shadow: 0 4px 20px rgba(255,107,74,0.35);
     }
 
     .btn-end {
@@ -261,6 +295,32 @@
       color: var(--muted);
     }
 
+    /* Push-to-talk hold button */
+    .ptt-hold-btn {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      max-width: 320px;
+      padding: 15px;
+      border-radius: 100px;
+      border: 2px solid var(--accent);
+      background: transparent;
+      color: var(--accent);
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      outline: none;
+      user-select: none;
+      transition: background 0.1s, color 0.1s;
+    }
+
+    .ptt-hold-btn.pressed {
+      background: var(--accent);
+      color: white;
+    }
+
     .mic-dot {
       width: 8px;
       height: 8px;
@@ -271,7 +331,7 @@
 
     @keyframes blink {
       0%, 100% { opacity: 1; }
-      50% { opacity: 0.3; }
+      50% { opacity: 0.25; }
     }
 
     .transcript::-webkit-scrollbar { width: 3px; }
@@ -282,7 +342,14 @@
 <body>
 <div id="app">
   <header>
-    <div class="logo">Luna <span>·</span> Português Brasileiro</div>
+    <div class="logo">Luna <span>·</span> Rio</div>
+    <div class="header-right">
+      <div class="ptt-pill" id="pttPill" style="display:none">
+        <div class="ptt-option selected" id="pttOpen" onclick="setPTT(false)">Open</div>
+        <div class="ptt-option" id="pttPush" onclick="setPTT(true)">Hold</div>
+      </div>
+      <div class="timer" id="timer">00:00</div>
+    </div>
   </header>
 
   <div class="orb-area">
@@ -297,7 +364,7 @@
         </svg>
       </div>
     </div>
-    <div class="status-text" id="statusText">Tap to start speaking with Luna</div>
+    <div class="status-text" id="statusText">Tap to start talking with Luna</div>
   </div>
 
   <div class="transcript" id="transcript"></div>
@@ -306,24 +373,49 @@
     <button class="btn btn-start" id="mainBtn" onclick="handleButton()">
       Start Conversation
     </button>
+    <button class="ptt-hold-btn" id="pttHoldBtn"
+      ontouchstart="pttUnmute(event)" ontouchend="pttMute(event)"
+      onmousedown="pttUnmute(event)" onmouseup="pttMute(event)">
+      Hold to Talk
+    </button>
   </div>
 </div>
 
 <audio id="remoteAudio" autoplay playsinline></audio>
 
 <script>
+  // ── Constants ────────────────────────────────────────────────────────────
+  const MAX_SESSION_MINUTES = 30;
+  const GOODBYE_PHRASES = [
+    "that's all for now", "bye", "tchau", "até mais", "talk later",
+    "gotta go", "see you later", "good night", "boa noite", "falou",
+    "see ya", "goodbye", "ciao", "até logo",
+  ];
+
+  // ── State ────────────────────────────────────────────────────────────────
   let pc = null, dc = null, localStream = null;
-  let sessionModel = 'gpt-realtime';
-  let state = 'idle';
+  let sessionModel = 'gpt-realtime-mini';
+  let state = 'idle'; // idle | loading | connected
   let lunaBuffer = '', lunaBubble = null;
+  let sessionTranscript = [];
+  let sessionStartTime = null;
+  let timerInterval = null;
+  let pendingGoodbye = false;
+  let costCapTriggered = false;
+  let pttMode = false;
 
-  const orbEl = document.getElementById('orb');
-  const orbRing = document.getElementById('orbRing');
-  const statusEl = document.getElementById('statusText');
+  // ── DOM refs ─────────────────────────────────────────────────────────────
+  const orbEl       = document.getElementById('orb');
+  const orbRing     = document.getElementById('orbRing');
+  const statusEl    = document.getElementById('statusText');
   const transcriptEl = document.getElementById('transcript');
-  const mainBtn = document.getElementById('mainBtn');
+  const mainBtn     = document.getElementById('mainBtn');
   const remoteAudio = document.getElementById('remoteAudio');
+  const timerEl     = document.getElementById('timer');
+  const pttPill     = document.getElementById('pttPill');
+  const pttHoldBtn  = document.getElementById('pttHoldBtn');
 
+  // ── UI helpers ───────────────────────────────────────────────────────────
   function setStatus(text, cls) {
     statusEl.textContent = text;
     statusEl.className = 'status-text' + (cls ? ' ' + cls : '');
@@ -337,11 +429,11 @@
   function setBtn(mode) {
     if (mode === 'loading') {
       mainBtn.className = 'btn btn-loading';
-      mainBtn.innerHTML = 'Connecting…';
+      mainBtn.innerHTML = 'Connecting\u2026';
       mainBtn.disabled = true;
     } else if (mode === 'connected') {
       mainBtn.className = 'btn btn-end';
-      mainBtn.innerHTML = '<span class="mic-dot"></span> End Conversation';
+      mainBtn.innerHTML = '<span class="mic-dot"></span>\u2002End Conversation';
       mainBtn.disabled = false;
     } else {
       mainBtn.className = 'btn btn-start';
@@ -375,38 +467,134 @@
     transcriptEl.scrollTop = transcriptEl.scrollHeight;
   }
 
-  function flushLunaBubble() { lunaBubble = null; lunaBuffer = ''; }
+  function flushLunaBubble() {
+    if (lunaBuffer.trim()) {
+      sessionTranscript.push({ role: 'assistant', text: lunaBuffer.trim() });
+    }
+    lunaBubble = null;
+    lunaBuffer = '';
+  }
 
+  // ── Timer ────────────────────────────────────────────────────────────────
+  function startTimer() {
+    sessionStartTime = Date.now();
+    timerEl.className = 'timer active';
+    timerInterval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - sessionStartTime) / 1000);
+      const mm = String(Math.floor(elapsed / 60)).padStart(2, '0');
+      const ss = String(elapsed % 60).padStart(2, '0');
+      timerEl.textContent = `${mm}:${ss}`;
+
+      // Warn at 25 min
+      if (elapsed >= 25 * 60 && elapsed < MAX_SESSION_MINUTES * 60) {
+        timerEl.className = 'timer warning';
+      }
+
+      // Cost cap at MAX_SESSION_MINUTES
+      if (elapsed >= MAX_SESSION_MINUTES * 60 && !costCapTriggered) {
+        triggerCostCap();
+      }
+    }, 1000);
+  }
+
+  function stopTimer() {
+    if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+    timerEl.textContent = '00:00';
+    timerEl.className = 'timer';
+  }
+
+  // ── Cost cap ─────────────────────────────────────────────────────────────
+  function triggerCostCap() {
+    costCapTriggered = true;
+    if (dc && dc.readyState === 'open') {
+      dc.send(JSON.stringify({
+        type: 'response.create',
+        response: {
+          modalities: ['text', 'audio'],
+          instructions: `We've been chatting for ${MAX_SESSION_MINUTES} minutes — time flies! Wrap up warmly. Tell Shay it's been fun, suggest picking up where you left off tomorrow, and say a proper carioca goodbye. Keep it natural and affectionate, not abrupt.`,
+        },
+      }));
+      pendingGoodbye = true; // auto-disconnect after her wrap-up
+    }
+  }
+
+  // ── PTT ──────────────────────────────────────────────────────────────────
+  function setPTT(enabled) {
+    pttMode = enabled;
+    document.getElementById('pttOpen').className = 'ptt-option' + (enabled ? '' : ' selected');
+    document.getElementById('pttPush').className = 'ptt-option' + (enabled ? ' selected' : '');
+    pttHoldBtn.style.display = enabled ? 'flex' : 'none';
+
+    if (localStream) {
+      localStream.getAudioTracks().forEach(t => { t.enabled = !enabled; });
+    }
+  }
+
+  function pttUnmute(e) {
+    e.preventDefault();
+    if (!pttMode || !localStream) return;
+    localStream.getAudioTracks().forEach(t => { t.enabled = true; });
+    pttHoldBtn.classList.add('pressed');
+  }
+
+  function pttMute(e) {
+    e.preventDefault();
+    if (!pttMode || !localStream) return;
+    localStream.getAudioTracks().forEach(t => { t.enabled = false; });
+    pttHoldBtn.classList.remove('pressed');
+  }
+
+  // ── Event handler ─────────────────────────────────────────────────────────
   function handleEvent(evt) {
     if (!evt || !evt.type) return;
+
     switch (evt.type) {
       case 'response.audio_transcript.delta':
         if (evt.delta) {
           setOrb('speaking');
-          setStatus('Luna is speaking…', 'speaking');
+          setStatus('Luna is speaking\u2026', 'speaking');
           updateLunaBubble(evt.delta);
         }
         break;
+
       case 'response.audio_transcript.done':
         flushLunaBubble();
         setOrb('active');
-        setStatus('Listening…', 'active');
+        setStatus(pttMode ? 'Hold button to speak' : 'Listening\u2026', 'active');
         break;
+
       case 'response.done':
         setOrb('active');
-        setStatus('Listening…', 'active');
+        setStatus(pttMode ? 'Hold button to speak' : 'Listening\u2026', 'active');
+        if (pendingGoodbye) {
+          pendingGoodbye = false;
+          setTimeout(() => endSession(), 2000);
+        }
         break;
-      case 'conversation.item.input_audio_transcription.completed':
-        if (evt.transcript && evt.transcript.trim())
-          addBubble('user', evt.transcript.trim());
+
+      case 'conversation.item.input_audio_transcription.completed': {
+        const text = evt.transcript?.trim();
+        if (text) {
+          addBubble('user', text);
+          sessionTranscript.push({ role: 'user', text });
+          // Check for goodbye phrases
+          const lower = text.toLowerCase();
+          if (GOODBYE_PHRASES.some(p => lower.includes(p))) {
+            pendingGoodbye = true;
+          }
+        }
         break;
+      }
+
       case 'input_audio_buffer.speech_started':
-        setStatus('Listening…', 'active');
+        setStatus('Listening\u2026', 'active');
         setOrb('active');
         break;
+
       case 'input_audio_buffer.speech_stopped':
-        setStatus('Processing…', 'active');
+        setStatus('Processing\u2026', 'active');
         break;
+
       case 'error':
         console.error('Realtime error:', evt);
         setStatus('Error: ' + (evt.error?.message || 'unknown'), 'error');
@@ -414,75 +602,137 @@
     }
   }
 
+  // ── Session start ─────────────────────────────────────────────────────────
   async function startSession() {
     state = 'loading';
     setBtn('loading');
-    setStatus('Connecting to Luna…');
+    setStatus('Connecting to Luna\u2026');
+    pendingGoodbye = false;
+    costCapTriggered = false;
+    sessionTranscript = [];
+
     try {
-      const sessionRes = await fetch('/session', { method: 'POST' });
+      const sessionRes = await fetch('/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+
       if (!sessionRes.ok) {
         const err = await sessionRes.json().catch(() => ({ error: 'Server error' }));
         throw new Error(err.error || 'Failed to create session');
       }
+
       const sessionData = await sessionRes.json();
       const ephemeralKey = sessionData.value;
-      sessionModel = sessionData.model || 'gpt-realtime';
+      sessionModel = sessionData.model || 'gpt-realtime-mini';
       if (!ephemeralKey) throw new Error('No ephemeral key in session response');
 
+      // Mic
       localStream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       });
 
+      // WebRTC
       pc = new RTCPeerConnection();
       pc.ontrack = (e) => { remoteAudio.srcObject = e.streams[0]; };
       localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
 
+      // Data channel
       dc = pc.createDataChannel('oai-events');
+
       dc.onopen = () => {
         state = 'connected';
         setBtn('connected');
         setOrb('active');
-        setStatus('Listening…', 'active');
+        setStatus('Listening\u2026', 'active');
+        startTimer();
+        pttPill.style.display = 'flex';
+
+        // Apply VAD + transcription settings
         dc.send(JSON.stringify({
           type: 'session.update',
           session: {
             turn_detection: { type: 'server_vad', threshold: 0.5, prefix_padding_ms: 300, silence_duration_ms: 700 },
             input_audio_transcription: { model: 'whisper-1' },
-          }
+          },
         }));
-        setTimeout(() => dc.send(JSON.stringify({ type: 'response.create', response: { modalities: ['text', 'audio'] } })), 300);
+
+        // Trigger Luna's greeting
+        setTimeout(() => {
+          dc.send(JSON.stringify({ type: 'response.create', response: { modalities: ['text', 'audio'] } }));
+        }, 350);
       };
-      dc.onmessage = (e) => { try { handleEvent(JSON.parse(e.data)); } catch(err) {} };
+
+      dc.onmessage = (e) => {
+        try { handleEvent(JSON.parse(e.data)); } catch (err) {}
+      };
       dc.onerror = (e) => console.error('DC error:', e);
 
+      // SDP exchange
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
 
       const sdpRes = await fetch(
         `https://api.openai.com/v1/realtime/calls?model=${encodeURIComponent(sessionModel)}`,
-        { method: 'POST', headers: { Authorization: `Bearer ${ephemeralKey}`, 'Content-Type': 'application/sdp' }, body: offer.sdp }
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${ephemeralKey}`, 'Content-Type': 'application/sdp' },
+          body: offer.sdp,
+        }
       );
       if (!sdpRes.ok) throw new Error('SDP exchange failed: ' + await sdpRes.text());
       await pc.setRemoteDescription({ type: 'answer', sdp: await sdpRes.text() });
-      setStatus('Connected — say something in Portuguese!', 'active');
+
+      setStatus('Connected \u2014 fala comigo!', 'active');
+
     } catch (err) {
       console.error('Start failed:', err);
       setStatus(err.message, 'error');
-      setOrb(''); setBtn('idle'); state = 'idle'; cleanup();
+      setOrb(''); setBtn('idle'); state = 'idle';
+      stopTimer();
+      cleanup();
     }
   }
 
+  // ── Session end ───────────────────────────────────────────────────────────
+  function endSession() {
+    if (state === 'idle') return;
+
+    const transcript = [...sessionTranscript];
+    const duration_seconds = sessionStartTime ? Math.round((Date.now() - sessionStartTime) / 1000) : 0;
+
+    state = 'idle';
+    stopTimer();
+    cleanup();
+    setBtn('idle');
+    setOrb('');
+    setStatus('Tap to start talking with Luna');
+    pttPill.style.display = 'none';
+    pttHoldBtn.style.display = 'none';
+    if (pttMode) setPTT(false); // reset toggle
+
+    // Fire-and-forget — save session to Supabase
+    if (transcript.length > 0) {
+      fetch('/session/end', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transcript, duration_seconds }),
+      }).catch(err => console.warn('Session save failed (non-critical):', err.message));
+    }
+
+    sessionTranscript = [];
+    sessionStartTime = null;
+    pendingGoodbye = false;
+    costCapTriggered = false;
+  }
+
   function cleanup() {
-    if (dc) { try { dc.close(); } catch(e){} dc = null; }
-    if (pc) { try { pc.close(); } catch(e){} pc = null; }
+    if (dc) { try { dc.close(); } catch (e) {} dc = null; }
+    if (pc) { try { pc.close(); } catch (e) {} pc = null; }
     if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
     remoteAudio.srcObject = null;
     lunaBuffer = ''; lunaBubble = null;
-  }
-
-  function endSession() {
-    state = 'idle'; cleanup(); setBtn('idle'); setOrb('');
-    setStatus('Tap to start speaking with Luna');
   }
 
   function handleButton() {
