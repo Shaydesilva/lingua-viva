@@ -35,7 +35,7 @@ NEVER DO:
 - Never use European Portuguese`;
 
 app.post('/session', async (req, res) => {
-  const model = process.env.REALTIME_MODEL || 'gpt-realtime';
+  const model = process.env.REALTIME_MODEL || 'gpt-realtime-mini';
 
   try {
     const response = await fetch('https://api.openai.com/v1/realtime/client_secrets', {
