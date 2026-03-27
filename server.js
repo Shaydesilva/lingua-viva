@@ -118,7 +118,7 @@ app.post('/session', async (req, res) => {
           type: 'realtime',
           model,
           instructions,
-          audio: { output: { voice: 'marin' } },
+          audio: { output: { voice: 'shimmer' } },
         },
       }),
     });
