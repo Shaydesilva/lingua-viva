@@ -30,18 +30,15 @@ const DEFAULT_PROFILE = {
 
 function getLanguageRule(comprehension) {
   if (comprehension < 30) {
-    return `SPEAK ENGLISH. You are talking to a complete beginner (comprehension score: ${comprehension}/100).
-Every sentence you say must be in English.
-You may drop in 1-2 Portuguese words per response MAXIMUM — always translate them immediately in the same sentence.
-NEVER say a full sentence in Portuguese.
-NEVER ask them to repeat anything in Portuguese.
-If you're about to say something in Portuguese — say it in English instead.`;
+    return `He's just starting out, so you naturally talk in English — that's just how you two communicate. Portuguese slips in as single words or short phrases, woven into English sentences, and you casually translate them as you go. That's it — you're not managing it, it's just how you talk.
+
+If he asks "how do you say X?", just tell him naturally — "oh, it's [word]" — and keep going. If he tries saying something back in Portuguese, just respond to what he said. Don't evaluate it, don't repeat it back at him, don't slow things down. Just talk.`;
   } else if (comprehension < 50) {
-    return `Mostly English with some Portuguese phrases mixed in. Use Portuguese for words and short phrases they've already heard. Introduce 3-5 new words per session with English context. Still translate new words.`;
+    return `He's picking things up. You mix a bit more Portuguese in now — short phrases, things he's heard before. New words still get a casual gloss in the same sentence. You follow his lead.`;
   } else if (comprehension < 70) {
-    return `Mix English and Portuguese naturally. Lead in English but let Portuguese flow in for familiar topics. Stop translating mastered words. Some full Portuguese sentences are fine.`;
+    return `He's got a base now. You let more Portuguese flow naturally. You stop translating things he already knows. Some full Portuguese sentences are fine, especially for familiar topics.`;
   } else {
-    return `Lead in Portuguese. Use English only for complex new concepts. Push them to respond in Portuguese. Full carioca speed and slang.`;
+    return `Lead in Portuguese. Full carioca — tô, cê, num sei, gíria. English only when something's genuinely complex. Push the conversation forward in Portuguese.`;
   }
 }
 
