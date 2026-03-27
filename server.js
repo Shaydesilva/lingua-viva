@@ -35,7 +35,7 @@ NEVER DO:
 - Never use European Portuguese`;
 
 app.post('/session', async (req, res) => {
-  const model = process.env.REALTIME_MODEL || 'gpt-realtime';
+  const model = process.env.REALTIME_MODEL || 'gpt-realtime-mini';
 
   try {
     const response = await fetch('https://api.openai.com/v1/realtime/client_secrets', {
@@ -49,15 +49,6 @@ app.post('/session', async (req, res) => {
           type: 'realtime',
           model,
           instructions: LUNA_PROMPT,
-          turn_detection: {
-            type: 'server_vad',
-            threshold: 0.5,
-            prefix_padding_ms: 300,
-            silence_duration_ms: 700,
-          },
-          input_audio_transcription: {
-            model: 'whisper-1',
-          },
           audio: {
             output: {
               voice: 'shimmer',
