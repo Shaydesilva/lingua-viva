@@ -180,7 +180,6 @@ app.post('/session', async (req, res) => {
           model,
           instructions,
           audio: { output: { voice: 'marin' } },
-          speed: 0.9,
         },
       }),
     });
