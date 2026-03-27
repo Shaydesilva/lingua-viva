@@ -401,6 +401,31 @@
   let sessionStartTime = null;
   let timerInterval = null;
   let reinforceInterval = null;
+
+  const CONFUSION_SIGNALS = [
+    'huh', 'what?', "i don't understand", "i don't get it",
+    'sorry', 'say that again', 'in english', 'english please',
+    "what does that mean", "what did you say", "come again",
+    "i'm lost", "i'm confused", "slow down", "too fast", "what was that",
+  ];
+
+  function checkForConfusion(transcript) {
+    const lower = transcript.toLowerCase().trim();
+    return CONFUSION_SIGNALS.some(s => lower.includes(s));
+  }
+
+  function handleConfusion() {
+    if (dc && dc.readyState === 'open') {
+      dc.send(JSON.stringify({
+        type: 'conversation.item.create',
+        item: {
+          type: 'message',
+          role: 'system',
+          content: [{ type: 'input_text', text: 'The user is confused. Switch to FULL English immediately. Rephrase what you just said entirely in English. Do not use any Portuguese in your next response. Be natural — just say it again in English as if you caught yourself.' }],
+        },
+      }));
+    }
+  }
   let pendingGoodbye = false;
   let costCapTriggered = false;
   let pttMode = false;
@@ -578,10 +603,12 @@
         if (text) {
           addBubble('user', text);
           sessionTranscript.push({ role: 'user', text });
-          // Check for goodbye phrases
           const lower = text.toLowerCase();
           if (GOODBYE_PHRASES.some(p => lower.includes(p))) {
             pendingGoodbye = true;
+          }
+          if (checkForConfusion(text)) {
+            handleConfusion();
           }
         }
         break;
@@ -672,11 +699,11 @@
               item: {
                 type: 'message',
                 role: 'system',
-                content: [{ type: 'input_text', text: 'Reminder: speak English. Only 1-2 Portuguese words per response, always with English translation immediately after. Do not switch to full Portuguese sentences.' }],
+                content: [{ type: 'input_text', text: 'You speak English. Stay in English. Portuguese words only as occasional seasoning — 1 or 2 max, always translated immediately. If you just said something in Portuguese, switch back to English now.' }],
               },
             }));
           }
-        }, 90000);
+        }, 45000);
       };
 
       dc.onmessage = (e) => {
