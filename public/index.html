@@ -1,946 +1,248 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="Luna" />
-  <meta name="theme-color" content="#FAF7F2" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="theme-color" content="#FAF7F2"/>
   <title>Luna</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Source+Sans+3:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--bg:#FAF7F2;--bg2:#F3EDE4;--card:#FFF;--border:#E8E0D4;--text:#2C2825;--text2:#7A7067;--text3:#A69E94;--accent:#C4654A;--accent-l:#F2DDD6;--pt:#B8860B;--pt-bg:#FDF6E3;--green:#5A8A6A;--green-l:#E8F0EB;--red:#C44A4A}
+    html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Source Sans 3',sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden}
+    #app{display:flex;flex-direction:column;height:100dvh;max-width:600px;margin:0 auto;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
 
-    :root {
-      --bg: #FAF7F2;
-      --bg2: #F3EDE4;
-      --card: #FFFFFF;
-      --border: #E8E0D4;
-      --text: #2C2825;
-      --text2: #7A7067;
-      --text3: #A69E94;
-      --accent: #C4654A;
-      --accent-light: #F2DDD6;
-      --pt: #B8860B;
-      --pt-bg: #FDF6E3;
-      --green: #5A8A6A;
-      --green-light: #E8F0EB;
-    }
+    /* Header */
+    header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
+    .hamburger{width:24px;height:24px;cursor:pointer;display:flex;flex-direction:column;justify-content:center;gap:5px;-webkit-tap-highlight-color:transparent}
+    .hamburger span{display:block;height:2px;background:var(--text2);border-radius:1px;transition:all .2s}
+    .logo{font-family:'Instrument Serif',serif;font-size:22px;font-style:italic;letter-spacing:-.01em}
+    .hdr-right{display:flex;align-items:center;gap:12px}
+    .timer{font-size:13px;font-variant-numeric:tabular-nums;color:var(--text3)}.timer.on{color:var(--green)}.timer.warn{color:var(--red);font-weight:600}
+    .mode-tog{display:none;background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:2px}.mode-tog.show{display:flex}
+    .mode-o{padding:4px 11px;border-radius:18px;font-size:11px;font-weight:600;color:var(--text3);cursor:pointer;transition:all .15s;-webkit-tap-highlight-color:transparent}.mode-o.on{background:var(--card);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.08)}
 
-    html, body {
-      height: 100%;
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'Source Sans 3', -apple-system, sans-serif;
-      -webkit-font-smoothing: antialiased;
-      overflow: hidden;
-    }
+    /* Chat */
+    #chat{flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:14px;-webkit-overflow-scrolling:touch}
+    .msg{max-width:88%;animation:fadeUp .2s ease}.msg.luna{align-self:flex-start}.msg.user{align-self:flex-end}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+    .bubble{padding:11px 15px;border-radius:18px;font-size:15px;line-height:1.55;display:flex;flex-wrap:wrap;align-items:baseline}
+    .luna .bubble{background:var(--card);border:1px solid var(--border);border-bottom-left-radius:4px}
+    .user .bubble{background:var(--accent);border-bottom-right-radius:4px;color:#fff}
 
-    #app {
-      display: flex;
-      flex-direction: column;
-      height: 100dvh;
-      max-width: 600px;
-      margin: 0 auto;
-      padding-top: env(safe-area-inset-top);
-      padding-bottom: env(safe-area-inset-bottom);
-    }
+    /* Words */
+    .w{display:inline;cursor:pointer;border-radius:3px;padding:0 1px;-webkit-tap-highlight-color:transparent;transition:background .1s}.w:active{background:var(--accent-l)}
+    .w.pt{color:var(--pt);font-weight:500;background:var(--pt-bg);padding:0 3px}.w.pt:active{background:#F5E6C8}
+    .sp{display:inline;pointer-events:none}
+    .w-live{display:inline;color:var(--text3);pointer-events:none}
 
-    /* ── Header ── */
-    header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 16px 20px 12px;
-      flex-shrink: 0;
-      border-bottom: 1px solid var(--border);
-    }
+    /* Status */
+    #sbar{flex-shrink:0;padding:10px 20px;display:flex;align-items:center;gap:8px;border-top:1px solid var(--border);min-height:40px}
+    .dot{width:8px;height:8px;border-radius:50%;background:var(--text3);flex-shrink:0;transition:background .2s}
+    .dot.listen{background:var(--green);animation:pulse 1.8s ease-in-out infinite}
+    .dot.speak{background:var(--accent);animation:pulse .8s ease-in-out infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+    #stxt{font-size:13px;color:var(--text3)}
 
-    .logo {
-      font-family: 'Instrument Serif', Georgia, serif;
-      font-size: 22px;
-      font-style: italic;
-      color: var(--text);
-      letter-spacing: -0.01em;
-    }
+    /* Live area */
+    #live{flex-shrink:0;min-height:50px;padding:6px 20px 4px;display:flex;flex-wrap:wrap;align-items:baseline;font-size:15px;line-height:1.55}
 
-    .header-right {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
+    /* Controls */
+    #ctrl{flex-shrink:0;padding:8px 20px 20px;display:flex;flex-direction:column;align-items:center;gap:8px}
+    .btn{width:100%;max-width:340px;padding:15px;border:none;border-radius:14px;font-family:inherit;font-size:16px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:transform .1s;outline:none}.btn:active{transform:scale(.97)}.btn:disabled{opacity:.4}
+    .btn-go{background:var(--accent);color:#fff;box-shadow:0 2px 12px rgba(196,101,74,.25)}
+    .btn-stop{background:var(--bg2);border:1px solid var(--border);color:var(--text2)}
+    .btn-wait{background:var(--bg2);border:1px solid var(--border);color:var(--text3)}
+    .btn-ptt{display:none;width:100%;max-width:340px;padding:13px;border-radius:14px;border:1.5px dashed var(--border);background:transparent;color:var(--text3);font-family:inherit;font-size:14px;font-weight:500;cursor:pointer;outline:none;-webkit-tap-highlight-color:transparent}.btn-ptt.show{display:block}.btn-ptt.on{background:var(--green-l);border-color:var(--green);border-style:solid;color:var(--green)}
 
-    .timer {
-      font-size: 13px;
-      font-variant-numeric: tabular-nums;
-      color: var(--text3);
-      letter-spacing: 0.03em;
-    }
-    .timer.active { color: var(--green); }
-    .timer.warning { color: var(--accent); font-weight: 600; }
+    /* Tooltip */
+    .tip{position:fixed;z-index:999;min-width:140px;max-width:220px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px 14px;box-shadow:0 8px 30px rgba(0,0,0,.1);pointer-events:none;animation:tipIn .15s ease}
+    @keyframes tipIn{from{opacity:0;transform:translateY(6px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
+    .tip-w{font-family:'Instrument Serif',serif;font-size:18px;font-style:italic;color:var(--pt);margin-bottom:4px}
+    .tip-d{font-size:14px;color:var(--text);line-height:1.4}
+    .tip-n{font-size:12px;color:var(--text3);margin-top:3px}
+    .tip-b{display:inline-block;font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;background:var(--pt-bg);color:var(--pt);padding:2px 7px;border-radius:10px;margin-bottom:6px}
+    .tip-spin{width:14px;height:14px;border:1.5px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .5s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
 
-    .mode-toggle {
-      display: none;
-      background: var(--bg2);
-      border: 1px solid var(--border);
-      border-radius: 20px;
-      padding: 2px;
-      gap: 0;
-    }
-    .mode-toggle.show { display: flex; }
+    /* Slide-out panel */
+    .overlay{position:fixed;inset:0;background:rgba(0,0,0,.2);z-index:100;opacity:0;pointer-events:none;transition:opacity .25s}.overlay.open{opacity:1;pointer-events:auto}
+    .panel{position:fixed;top:0;left:0;bottom:0;width:300px;background:var(--bg);z-index:101;transform:translateX(-100%);transition:transform .3s cubic-bezier(.22,1,.36,1);overflow-y:auto;padding:env(safe-area-inset-top,20px) 20px 40px;-webkit-overflow-scrolling:touch}
+    .panel.open{transform:translateX(0)}
+    .panel-close{position:absolute;top:16px;right:16px;width:28px;height:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:20px;-webkit-tap-highlight-color:transparent}
+    .panel h2{font-family:'Instrument Serif',serif;font-size:22px;font-style:italic;font-weight:400;margin:24px 0 16px;color:var(--text)}
+    .panel h2:first-of-type{margin-top:8px}
+    .hero-num{font-size:48px;font-weight:700;color:var(--accent);letter-spacing:-.02em}.hero-label{font-size:13px;color:var(--text3);margin-top:-4px}
+    .stat-row{display:flex;gap:16px;margin:12px 0}
+    .stat{flex:1}.stat-val{font-size:20px;font-weight:600}.stat-lbl{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
+    .phase-bar{height:4px;background:var(--bg2);border-radius:2px;margin:8px 0 4px;overflow:hidden}.phase-fill{height:100%;background:var(--green);border-radius:2px;transition:width .3s}
+    .phase-lbl{font-size:12px;color:var(--text3)}
 
-    .mode-opt {
-      padding: 4px 12px;
-      border-radius: 18px;
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--text3);
-      cursor: pointer;
-      user-select: none;
-      -webkit-tap-highlight-color: transparent;
-      transition: all 0.15s;
-    }
-    .mode-opt.on {
-      background: var(--card);
-      color: var(--text);
-      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-    }
+    .vocab-item{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)}
+    .vocab-item:last-child{border:none}
+    .vocab-w{font-weight:500;font-size:14px}.vocab-t{font-size:13px;color:var(--text2)}.vocab-m{width:40px;height:4px;border-radius:2px;background:var(--bg2);overflow:hidden;flex-shrink:0}.vocab-mf{height:100%;border-radius:2px}
 
-    /* ── Chat area ── */
-    #chat {
-      flex: 1;
-      overflow-y: auto;
-      padding: 16px 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      -webkit-overflow-scrolling: touch;
-    }
+    .sess-item{padding:10px 0;border-bottom:1px solid var(--border)}.sess-item:last-child{border:none}
+    .sess-date{font-size:12px;color:var(--text3)}.sess-sum{font-size:13px;color:var(--text2);margin-top:2px;line-height:1.4}
 
-    .msg {
-      max-width: 88%;
-      animation: msgIn 0.2s ease;
-    }
-    .msg.luna { align-self: flex-start; }
-    .msg.user { align-self: flex-end; }
+    /* Recap card */
+    .recap{position:fixed;bottom:0;left:0;right:0;background:var(--card);border-top:1px solid var(--border);border-radius:16px 16px 0 0;padding:20px 24px calc(env(safe-area-inset-bottom,20px) + 12px);box-shadow:0 -4px 30px rgba(0,0,0,.08);z-index:50;transform:translateY(100%);transition:transform .35s cubic-bezier(.22,1,.36,1);max-width:600px;margin:0 auto}
+    .recap.show{transform:translateY(0)}
+    .recap-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+    .recap-title{font-family:'Instrument Serif',serif;font-size:18px;font-style:italic}
+    .recap-dur{font-size:13px;color:var(--text3)}
+    .recap-words{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+    .recap-tag{font-size:12px;font-weight:500;padding:3px 10px;border-radius:20px}
+    .recap-new{background:var(--accent-l);color:var(--accent)}
+    .recap-rev{background:var(--green-l);color:var(--green)}
+    .recap-sum{font-size:13px;color:var(--text2);line-height:1.4;margin-top:6px}
 
-    @keyframes msgIn {
-      from { opacity: 0; transform: translateY(6px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .msg-bubble {
-      padding: 12px 16px;
-      border-radius: 18px;
-      font-size: 15px;
-      line-height: 1.55;
-      display: flex;
-      flex-wrap: wrap;
-      align-items: baseline;
-    }
-
-    .luna .msg-bubble {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-bottom-left-radius: 4px;
-      color: var(--text);
-    }
-
-    .user .msg-bubble {
-      background: var(--accent);
-      border-bottom-right-radius: 4px;
-      color: #FFF;
-    }
-
-    /* ── Words (tappable) ── */
-    .w {
-      display: inline;
-      cursor: pointer;
-      border-radius: 3px;
-      padding: 0 1px;
-      -webkit-tap-highlight-color: transparent;
-      transition: background 0.1s;
-    }
-    .w:active { background: var(--accent-light); }
-
-    .w.pt {
-      color: var(--pt);
-      font-weight: 500;
-      background: var(--pt-bg);
-      border-radius: 3px;
-      padding: 0 3px;
-    }
-    .w.pt:active { background: #F5E6C8; }
-
-    .sp { display: inline; pointer-events: none; user-select: none; }
-
-    /* live streaming text (not yet committed) */
-    .w-live {
-      display: inline;
-      color: var(--text3);
-      font-size: 15px;
-      pointer-events: none;
-    }
-
-    /* ── Status bar ── */
-    #status-bar {
-      flex-shrink: 0;
-      padding: 12px 20px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      border-top: 1px solid var(--border);
-      background: var(--bg);
-      min-height: 44px;
-    }
-
-    .status-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--text3);
-      flex-shrink: 0;
-      transition: background 0.2s;
-    }
-    .status-dot.listening { background: var(--green); animation: breathe 1.8s ease-in-out infinite; }
-    .status-dot.speaking { background: var(--accent); animation: breathe 0.8s ease-in-out infinite; }
-
-    @keyframes breathe {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.35; }
-    }
-
-    #status-text {
-      font-size: 13px;
-      color: var(--text3);
-    }
-
-    /* ── Live response area ── */
-    #live-response {
-      flex-shrink: 0;
-      min-height: 60px;
-      padding: 8px 20px 4px;
-      display: flex;
-      flex-wrap: wrap;
-      align-items: baseline;
-      font-size: 15px;
-      line-height: 1.55;
-      background: var(--bg);
-    }
-
-    /* ── Controls ── */
-    #controls {
-      flex-shrink: 0;
-      padding: 8px 20px 20px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-      background: var(--bg);
-    }
-
-    .btn-main {
-      width: 100%;
-      max-width: 340px;
-      padding: 15px 24px;
-      border: none;
-      border-radius: 14px;
-      font-family: 'Source Sans 3', sans-serif;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-      transition: transform 0.1s, opacity 0.2s;
-      outline: none;
-    }
-    .btn-main:active { transform: scale(0.97); }
-    .btn-main:disabled { opacity: 0.4; cursor: not-allowed; }
-
-    .btn-start {
-      background: var(--accent);
-      color: #FFF;
-      box-shadow: 0 2px 12px rgba(196, 101, 74, 0.25);
-    }
-
-    .btn-end {
-      background: var(--bg2);
-      border: 1px solid var(--border);
-      color: var(--text2);
-    }
-
-    .btn-connecting {
-      background: var(--bg2);
-      border: 1px solid var(--border);
-      color: var(--text3);
-    }
-
-    .btn-ptt {
-      display: none;
-      width: 100%;
-      max-width: 340px;
-      padding: 13px;
-      border-radius: 14px;
-      border: 1.5px dashed var(--border);
-      background: transparent;
-      color: var(--text3);
-      font-family: 'Source Sans 3', sans-serif;
-      font-size: 14px;
-      font-weight: 500;
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-      outline: none;
-      user-select: none;
-      transition: all 0.1s;
-    }
-    .btn-ptt.show { display: block; }
-    .btn-ptt.pressed {
-      background: var(--green-light);
-      border-color: var(--green);
-      border-style: solid;
-      color: var(--green);
-    }
-
-    /* ── Translation tooltip ── */
-    .tooltip {
-      position: fixed;
-      z-index: 999;
-      min-width: 140px;
-      max-width: 240px;
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 12px 14px;
-      box-shadow: 0 8px 30px rgba(0,0,0,0.1);
-      pointer-events: none;
-      animation: ttIn 0.15s ease forwards;
-    }
-    @keyframes ttIn {
-      from { opacity: 0; transform: translateY(6px) scale(0.95); }
-      to { opacity: 1; transform: translateY(0) scale(1); }
-    }
-
-    .tt-word {
-      font-family: 'Instrument Serif', serif;
-      font-size: 18px;
-      font-style: italic;
-      color: var(--pt);
-      margin-bottom: 4px;
-    }
-    .tt-def { font-size: 14px; color: var(--text); line-height: 1.4; }
-    .tt-note { font-size: 12px; color: var(--text3); margin-top: 3px; }
-    .tt-badge {
-      display: inline-block;
-      font-size: 9px;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      background: var(--pt-bg);
-      color: var(--pt);
-      padding: 2px 7px;
-      border-radius: 10px;
-      margin-bottom: 6px;
-    }
-    .tt-loading {
-      width: 14px; height: 14px;
-      border: 1.5px solid var(--border);
-      border-top-color: var(--accent);
-      border-radius: 50%;
-      animation: spin 0.5s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* ── Welcome ── */
-    .welcome {
-      text-align: center;
-      padding: 40px 20px;
-      color: var(--text3);
-      font-size: 14px;
-      line-height: 1.6;
-    }
-    .welcome h2 {
-      font-family: 'Instrument Serif', serif;
-      font-size: 28px;
-      font-style: italic;
-      color: var(--text);
-      margin-bottom: 8px;
-      font-weight: 400;
-    }
+    .welcome{text-align:center;padding:40px 20px;color:var(--text3);font-size:14px;line-height:1.6}
+    .welcome h2{font-family:'Instrument Serif',serif;font-size:28px;font-style:italic;color:var(--text);margin-bottom:8px;font-weight:400}
   </style>
 </head>
 <body>
 <div id="app">
-
   <header>
+    <div class="hamburger" onclick="togglePanel()"><span></span><span></span><span></span></div>
     <div class="logo">Luna</div>
-    <div class="header-right">
-      <div class="mode-toggle" id="modeToggle">
-        <div class="mode-opt on" id="modeOpen" onclick="setMode(false)">Open</div>
-        <div class="mode-opt" id="modePush" onclick="setMode(true)">Hold</div>
-      </div>
-      <div class="timer" id="timer">0:00</div>
+    <div class="hdr-right">
+      <div class="mode-tog" id="modeTog"><div class="mode-o on" id="mO" onclick="setMode(false)">Open</div><div class="mode-o" id="mP" onclick="setMode(true)">Hold</div></div>
+      <div class="timer" id="tmr">0:00</div>
     </div>
   </header>
-
-  <div id="chat">
-    <div class="welcome" id="welcome">
-      <h2>Oi</h2>
-      <p>Tap below to start talking with Luna.<br>She'll chat in English and sprinkle in Portuguese along the way.<br>Tap any word to see what it means.</p>
-    </div>
+  <div id="chat"><div class="welcome" id="welc"><h2>Oi</h2><p>Tap below to talk with Luna.<br>She'll chat in English with Portuguese woven in.<br>Tap any word to see what it means.</p></div></div>
+  <div id="live"></div>
+  <div id="sbar"><div class="dot" id="dot"></div><span id="stxt">Ready</span></div>
+  <div id="ctrl">
+    <button class="btn btn-go" id="mbtn" onclick="go()">Start talking</button>
+    <button class="btn-ptt" id="pttBtn" ontouchstart="pttOn(event)" ontouchend="pttOff(event)" onmousedown="pttOn(event)" onmouseup="pttOff(event)">Hold to talk</button>
   </div>
-
-  <div id="live-response"></div>
-
-  <div id="status-bar">
-    <div class="status-dot" id="dot"></div>
-    <span id="status-text">Ready</span>
-  </div>
-
-  <div id="controls">
-    <button class="btn-main btn-start" id="mainBtn" onclick="handleBtn()">Start talking</button>
-    <button class="btn-ptt" id="pttBtn"
-      ontouchstart="pttOn(event)" ontouchend="pttOff(event)"
-      onmousedown="pttOn(event)" onmouseup="pttOff(event)">
-      Hold to talk
-    </button>
-  </div>
-
 </div>
 
-<audio id="audio" autoplay playsinline></audio>
+<!-- Overlay + Panel -->
+<div class="overlay" id="overlay" onclick="togglePanel()"></div>
+<div class="panel" id="panel">
+  <div class="panel-close" onclick="togglePanel()">×</div>
+  <h2>Your Portuguese</h2>
+  <div id="pnlHero"></div>
+  <div id="pnlPhase"></div>
+  <div id="pnlStats"></div>
+  <h2>Vocabulary</h2>
+  <div id="pnlVocab"><div style="color:var(--text3);font-size:13px">Start a conversation to build your vocabulary.</div></div>
+  <h2>Recent Sessions</h2>
+  <div id="pnlSessions"><div style="color:var(--text3);font-size:13px">No sessions yet.</div></div>
+</div>
+
+<!-- Recap card -->
+<div class="recap" id="recap"></div>
+
+<audio id="aud" autoplay playsinline></audio>
 
 <script>
-const MAX_MINS = 30;
-
-const GOODBYE_PHRASES = [
-  "that's all","bye","tchau","até mais","talk later","gotta go",
-  "see you","good night","boa noite","falou","goodbye","ciao","até logo","see ya"
-];
-
-const CONFUSION_WORDS = [
-  "huh","what","what?","huh?","sorry?","que?","sorry",
-  "i don't understand","i don't get it","in english","english please",
-  "what does that mean","what did you say","i'm lost","i'm confused",
-  "come again","say again","what was that"
-];
-
-// Portuguese detection
-const PT_ACCENT = /[ãõâêîôûçáéíóúàü]/i;
-const PT_COMMON = new Set([
-  'tá','né','tô','cê','num','cara','gente','assim','então','tipo',
-  'nossa','oi','tchau','obrigado','obrigada','legal','saudade','carioca',
-  'boteco','praia','rapaz','poxa','caramba','mano','véi','ótimo','beleza',
-  'valeu','falou','não','sim','muito','mais','para','com','uma','isso',
-  'bom','boa','bem','tudo','que','por','aqui','você','mas','cadê',
-  'também','quando','onde','como','porque','pô','firmeza','tranquilo',
-  'demais','galera','churrasco','cerveja','açaí','fome','sede','calor',
-  'frio','bonito','feio','grande','pequeno','bairro','rua','ônibus',
-  'metrô','dinheiro','conta','garçom','cardápio','pedido','troco',
-  'padaria','feira','mercado','farmácia','hospital','delegacia','nóis'
-]);
-
-function isPt(w) {
-  const c = w.toLowerCase().replace(/[.,!?;:'"()""«»\-—]/g, '');
-  if (!c) return false;
-  return PT_ACCENT.test(c) || PT_COMMON.has(c);
-}
-
-// ── State ──────────────────────────────────────────────
-let pc = null, dc = null, stream = null;
-let state = 'idle'; // idle | connecting | live
-let lunaText = '', wordBuf = '', liveWordEl = null;
-let transcript = [];
-let startTime = null, timerInt = null;
-let awaitingBye = false, capTriggered = false, pushMode = false;
-let cache = {}, popup = null;
-let reinforceInt = null;
-
-// DOM
-const chatEl = document.getElementById('chat');
-const liveEl = document.getElementById('live-response');
-const dotEl = document.getElementById('dot');
-const statusEl = document.getElementById('status-text');
-const mainBtn = document.getElementById('mainBtn');
-const timerEl = document.getElementById('timer');
-const modeToggle = document.getElementById('modeToggle');
-const pttBtn = document.getElementById('pttBtn');
-const audioEl = document.getElementById('audio');
-
-// ── Helpers ────────────────────────────────────────────
-
-function setStatus(txt, mode) {
-  statusEl.textContent = txt;
-  dotEl.className = 'status-dot' + (mode ? ' ' + mode : '');
-}
-
-function setButton(s) {
-  if (s === 'connecting') {
-    mainBtn.className = 'btn-main btn-connecting';
-    mainBtn.textContent = 'Connecting…';
-    mainBtn.disabled = true;
-  } else if (s === 'live') {
-    mainBtn.className = 'btn-main btn-end';
-    mainBtn.textContent = 'End conversation';
-    mainBtn.disabled = false;
-  } else {
-    mainBtn.className = 'btn-main btn-start';
-    mainBtn.textContent = 'Start talking';
-    mainBtn.disabled = false;
-  }
-}
-
-// ── Timer ──────────────────────────────────────────────
-
-function startTimer() {
-  startTime = Date.now();
-  timerEl.className = 'timer active';
-  timerInt = setInterval(() => {
-    const s = Math.floor((Date.now() - startTime) / 1000);
-    const m = Math.floor(s / 60);
-    timerEl.textContent = `${m}:${String(s % 60).padStart(2, '0')}`;
-    if (s >= 25 * 60) timerEl.className = 'timer warning';
-    if (s >= MAX_MINS * 60 && !capTriggered) triggerCap();
-  }, 1000);
-}
-
-function stopTimer() {
-  clearInterval(timerInt);
-  timerEl.textContent = '0:00';
-  timerEl.className = 'timer';
-}
-
-function triggerCap() {
-  capTriggered = true;
-  if (dc?.readyState === 'open') {
-    dc.send(JSON.stringify({
-      type: 'response.create',
-      response: {
-        modalities: ['text', 'audio'],
-        instructions: `We've been talking for ${MAX_MINS} minutes. Wrap up warmly — suggest picking up tomorrow.`
-      }
-    }));
-    awaitingBye = true;
-  }
-}
-
-// ── Word rendering ─────────────────────────────────────
-
-function mkWord(text) {
-  const clean = text.replace(/^[""'«(]+|[.,!?;:""'»)\-—]+$/g, '');
-  const el = document.createElement('span');
-  el.className = 'w' + (clean && isPt(clean) ? ' pt' : '');
-  el.textContent = text;
-  if (clean) {
-    el.dataset.word = clean;
-    el.addEventListener('click', e => { e.stopPropagation(); showTooltip(clean, el); });
-  }
-  return el;
-}
-
-function mkSpace() {
-  const el = document.createElement('span');
-  el.className = 'sp';
-  el.textContent = ' ';
-  return el;
-}
-
-function textToWords(container, text) {
-  text.split(/(\s+)/).forEach(tok => {
-    if (/^\s+$/.test(tok)) container.appendChild(mkSpace());
-    else if (tok) container.appendChild(mkWord(tok));
-  });
-}
-
-// ── Live streaming ─────────────────────────────────────
-
-function onDelta(delta) {
-  if (!lunaText) liveEl.innerHTML = '';
-  lunaText += delta;
-
-  for (const ch of delta) {
-    if (ch === ' ' || ch === '\n') {
-      if (wordBuf) {
-        if (liveWordEl) { liveWordEl.remove(); liveWordEl = null; }
-        liveEl.appendChild(mkWord(wordBuf));
-        wordBuf = '';
-      }
-      liveEl.appendChild(mkSpace());
-    } else {
-      wordBuf += ch;
-      if (!liveWordEl) {
-        liveWordEl = document.createElement('span');
-        liveWordEl.className = 'w-live';
-        liveEl.appendChild(liveWordEl);
-      }
-      liveWordEl.textContent = wordBuf;
-    }
-  }
-}
-
-function onResponseDone() {
-  // flush remaining word
-  if (wordBuf) {
-    if (liveWordEl) { liveWordEl.remove(); liveWordEl = null; }
-    liveEl.appendChild(mkWord(wordBuf));
-    wordBuf = '';
-  }
-  if (liveWordEl) { liveWordEl.remove(); liveWordEl = null; }
-
-  const text = lunaText.trim();
-  if (text) {
-    transcript.push({ role: 'assistant', text });
-    addMessage('luna', text);
-  }
-
-  lunaText = '';
-  liveEl.innerHTML = '';
-}
-
-// ── Messages ───────────────────────────────────────────
-
-function addMessage(role, text) {
-  const welcome = document.getElementById('welcome');
-  if (welcome) welcome.remove();
-
-  const msg = document.createElement('div');
-  msg.className = 'msg ' + role;
-  const bubble = document.createElement('div');
-  bubble.className = 'msg-bubble';
-
-  if (role === 'luna') {
-    textToWords(bubble, text);
-  } else {
-    bubble.textContent = text;
-  }
-
-  msg.appendChild(bubble);
-  chatEl.appendChild(msg);
-  chatEl.scrollTop = chatEl.scrollHeight;
-}
-
-// ── Tooltip ────────────────────────────────────────────
-
-async function showTooltip(word, anchor) {
-  if (popup) { popup.remove(); popup = null; }
-
-  const tt = document.createElement('div');
-  tt.className = 'tooltip';
-  tt.innerHTML = `<div class="tt-word">${word}</div><div class="tt-loading"></div>`;
-  document.body.appendChild(tt);
-  popup = tt;
-  positionTooltip(tt, anchor);
-
-  const key = word.toLowerCase();
-  if (!cache[key]) {
-    try {
-      const r = await fetch('/translate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ word }),
-      });
-      cache[key] = await r.json();
-    } catch {
-      cache[key] = { translation: '—', language: 'unknown' };
-    }
-  }
-
-  if (tt !== popup) return;
-  const d = cache[key];
-
-  let html = '';
-  if (d.language === 'pt') html += '<div class="tt-badge">Portuguese</div>';
-  html += `<div class="tt-word">${word}</div>`;
-  html += `<div class="tt-def">${d.translation || '—'}</div>`;
-  if (d.note) html += `<div class="tt-note">${d.note}</div>`;
-  tt.innerHTML = html;
-
-  setTimeout(() => { if (tt === popup) { tt.remove(); popup = null; } }, 4000);
-}
-
-function positionTooltip(el, anchor) {
-  const r = anchor.getBoundingClientRect();
-  const W = 220, gap = 8;
-  let top = r.top - 90;
-  if (top < 10) top = r.bottom + gap;
-  let left = r.left + r.width / 2 - W / 2;
-  left = Math.max(8, Math.min(left, window.innerWidth - W - 8));
-  Object.assign(el.style, { top: top + 'px', left: left + 'px', width: W + 'px' });
-}
-
-document.addEventListener('click', () => { if (popup) { popup.remove(); popup = null; } });
-
-// ── Push to talk ───────────────────────────────────────
-
-function setMode(push) {
-  pushMode = push;
-  document.getElementById('modeOpen').className = 'mode-opt' + (!push ? ' on' : '');
-  document.getElementById('modePush').className = 'mode-opt' + (push ? ' on' : '');
-  pttBtn.className = 'btn-ptt' + (push ? ' show' : '');
-  if (stream) stream.getAudioTracks().forEach(t => { t.enabled = !push; });
-}
-
-function pttOn(e) {
-  e.preventDefault();
-  if (!pushMode || !stream) return;
-  stream.getAudioTracks().forEach(t => { t.enabled = true; });
-  pttBtn.classList.add('pressed');
-}
-
-function pttOff(e) {
-  e.preventDefault();
-  if (!pushMode || !stream) return;
-  stream.getAudioTracks().forEach(t => { t.enabled = false; });
-  pttBtn.classList.remove('pressed');
-}
-
-// ── Reinforcement (prevents Portuguese drift) ──────────
-
-function startReinforcement() {
-  reinforceInt = setInterval(() => {
-    if (dc?.readyState === 'open') {
-      dc.send(JSON.stringify({
-        type: 'conversation.item.create',
-        item: {
-          type: 'message',
-          role: 'system',
-          content: [{
-            type: 'input_text',
-            text: 'Stay in English. Portuguese only as 1-2 words woven into English sentences, always translated. Keep responses short.'
-          }]
-        }
-      }));
-    }
-  }, 60000);
-}
-
-function stopReinforcement() {
-  clearInterval(reinforceInt);
-  reinforceInt = null;
-}
-
-// ── Events from OpenAI ─────────────────────────────────
-
-function handleEvent(evt) {
-  if (!evt?.type) return;
-
-  // Debug: log all event types (remove this once stable)
-  if (!evt.type.startsWith('response.audio.') && !evt.type.startsWith('response.output_audio.') && evt.type !== 'input_audio_buffer.speech_started') {
-    console.log('[Luna event]', evt.type, evt.delta ? '(delta)' : '', evt.transcript ? `"${evt.transcript.slice(0,40)}"` : '');
-  }
-
-  switch (evt.type) {
-    // GA event names (current)
-    case 'response.output_audio_transcript.delta':
-    // Beta event names (fallback)
-    case 'response.audio_transcript.delta':
-      if (evt.delta) { setStatus('Luna is talking…', 'speaking'); onDelta(evt.delta); }
-      break;
-
-    // GA event names (current)
-    case 'response.output_audio_transcript.done':
-    // Beta event names (fallback)
-    case 'response.audio_transcript.done':
-      onResponseDone();
-      setStatus(pushMode ? 'Hold to talk' : 'Listening…', 'listening');
-      break;
-
-    // GA text output (if model sends text alongside audio)
-    case 'response.output_text.delta':
-      if (evt.delta && !lunaText) { setStatus('Luna is talking…', 'speaking'); onDelta(evt.delta); }
-      break;
-
-    case 'response.output_text.done':
-      if (!lunaText) break; // only handle if no audio transcript came through
-      onResponseDone();
-      setStatus(pushMode ? 'Hold to talk' : 'Listening…', 'listening');
-      break;
-
-    case 'response.done':
-      setStatus(pushMode ? 'Hold to talk' : 'Listening…', 'listening');
-      if (awaitingBye) { awaitingBye = false; setTimeout(endSession, 2000); }
-      break;
-
-    case 'conversation.item.input_audio_transcription.completed': {
-      const text = evt.transcript?.trim();
-      if (!text) break;
-
-      addMessage('user', text);
-      transcript.push({ role: 'user', text });
-
-      const lower = text.toLowerCase();
-
-      // Goodbye check
-      if (GOODBYE_PHRASES.some(p => lower.includes(p))) awaitingBye = true;
-
-      // Confusion check — send immediate redirect
-      const isConfused = CONFUSION_WORDS.some(s => {
-        if (s.length <= 4) return lower === s || lower === s.replace('?', '');
-        return lower.includes(s);
-      });
-
-      if (isConfused && dc?.readyState === 'open') {
-        dc.send(JSON.stringify({
-          type: 'conversation.item.create',
-          item: {
-            type: 'message',
-            role: 'system',
-            content: [{
-              type: 'input_text',
-              text: "He didn't understand. Say it again in plain English. Keep it simple."
-            }]
-          }
-        }));
-      }
-      break;
-    }
-
-    case 'input_audio_buffer.speech_started':
-      setStatus('Listening…', 'listening');
-      break;
-
-    case 'input_audio_buffer.speech_stopped':
-      setStatus('Thinking…', '');
-      break;
-
-    case 'error':
-      console.error('Realtime error:', evt);
-      setStatus(evt.error?.message || 'Error', '');
-      break;
-  }
-}
-
-// ── Session lifecycle ──────────────────────────────────
-
-async function startSession() {
-  state = 'connecting';
-  setButton('connecting');
-  setStatus('Connecting…', '');
-  awaitingBye = false;
-  capTriggered = false;
-  transcript = [];
-  chatEl.innerHTML = '';
-  liveEl.innerHTML = '';
-
-  try {
-    const sr = await fetch('/session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: '{}',
-    });
-    if (!sr.ok) throw new Error((await sr.json().catch(() => ({}))).error || 'Server error');
-    const sd = await sr.json();
-    const key = sd.value;
-    if (!key) throw new Error('No ephemeral key');
-
-    stream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-    });
-
-    pc = new RTCPeerConnection();
-    pc.ontrack = e => { audioEl.srcObject = e.streams[0]; };
-    stream.getTracks().forEach(t => pc.addTrack(t, stream));
-    dc = pc.createDataChannel('oai-events');
-
-    dc.onopen = () => {
-      state = 'live';
-      setButton('live');
-      setStatus('Listening…', 'listening');
-      startTimer();
-      modeToggle.classList.add('show');
-      startReinforcement();
-
-      // Configure VAD and transcription
-      dc.send(JSON.stringify({
-        type: 'session.update',
-        session: {
-          type: 'realtime',
-          turn_detection: { type: 'server_vad', threshold: 0.7, prefix_padding_ms: 300, silence_duration_ms: 1000 },
-          input_audio_transcription: { model: 'whisper-1' },
-        }
-      }));
-
-      // Trigger Luna's greeting
-      setTimeout(() => {
-        dc.send(JSON.stringify({
-          type: 'response.create',
-          response: { modalities: ['text', 'audio'] }
-        }));
-      }, 400);
-    };
-
-    dc.onmessage = e => { try { handleEvent(JSON.parse(e.data)); } catch(err) { console.error('[Luna parse error]', err.message, e.data?.slice?.(0,100)); } };
-
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-
-    const model = sd.model || 'gpt-realtime-mini';
-    const sdpRes = await fetch(
-      `https://api.openai.com/v1/realtime/calls?model=${encodeURIComponent(model)}`,
-      {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/sdp' },
-        body: offer.sdp,
-      }
-    );
-    if (!sdpRes.ok) throw new Error('Connection failed');
-    await pc.setRemoteDescription({ type: 'answer', sdp: await sdpRes.text() });
-
-  } catch (err) {
-    console.error('Start failed:', err);
-    setStatus(err.message, '');
-    setButton('idle');
-    state = 'idle';
-    stopTimer();
-    stopReinforcement();
-    cleanup();
-  }
-}
-
-function endSession() {
-  if (state === 'idle') return;
-  const t = [...transcript];
-  const dur = startTime ? Math.round((Date.now() - startTime) / 1000) : 0;
-
-  state = 'idle';
-  stopTimer();
-  stopReinforcement();
-  setButton('idle');
-  setStatus('Ready', '');
-  modeToggle.classList.remove('show');
-  pttBtn.className = 'btn-ptt';
-  if (pushMode) setMode(false);
-
-  if (t.length) {
-    fetch('/session/end', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ transcript: t, duration_seconds: dur }),
-    }).catch(e => console.warn('Save failed:', e.message));
-  }
-
-  transcript = [];
-  startTime = null;
-  awaitingBye = false;
-  capTriggered = false;
-  cleanup();
-}
-
-function cleanup() {
-  if (dc) { try { dc.close(); } catch {} dc = null; }
-  if (pc) { try { pc.close(); } catch {} pc = null; }
-  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
-  audioEl.srcObject = null;
-  lunaText = '';
-  wordBuf = '';
-  liveWordEl = null;
-  if (popup) { popup.remove(); popup = null; }
-}
-
-function handleBtn() {
-  if (state === 'idle') startSession();
-  else if (state === 'live') endSession();
-}
+const MAX_MINS=30;
+const GOODBYE=["that's all","bye","tchau","até mais","talk later","gotta go","see you","good night","boa noite","falou","goodbye","see ya"];
+const CONFUSE=["huh","what","what?","huh?","sorry?","que?","sorry","i don't understand","i don't get it","in english","english please","what does that mean","what did you say","i'm lost","i'm confused","come again","what was that"];
+const PT_RE=/[ãõâêîôûçáéíóúàü]/i;
+const PT_SET=new Set(['tá','né','tô','cê','cara','gente','assim','então','tipo','nossa','oi','tchau','obrigado','obrigada','legal','saudade','carioca','boteco','praia','poxa','caramba','mano','ótimo','beleza','valeu','falou','não','sim','muito','mais','para','com','uma','isso','bom','boa','bem','tudo','que','por','aqui','você','mas','cadê','também','quando','onde','como','porque','pô','firmeza','tranquilo','demais','galera','cerveja','açaí','fome','sede','calor','frio','grande','pequeno','dinheiro','conta','garçom','cardápio','padaria','troco','banheiro','cartão','água','café','gostoso','massa','almoço','jantar']);
+function isPt(w){const c=w.toLowerCase().replace(/[.,!?;:'"()""«»—-]/g,'');return c&&(PT_RE.test(c)||PT_SET.has(c))}
+
+let pc=null,dc=null,stream=null,state='idle',lunaT='',wBuf='',wEl=null;
+let transcript=[],t0=null,tmrI=null,bye=false,cap=false,ptt=false;
+let tcache={},popup=null,reinI=null,vocabMap={};
+const $=id=>document.getElementById(id);
+
+function setSt(t,m){$('stxt').textContent=t;$('dot').className='dot'+(m?' '+m:'')}
+function setBtn(s){const b=$('mbtn');if(s==='wait'){b.className='btn btn-wait';b.textContent='Connecting…';b.disabled=true}else if(s==='live'){b.className='btn btn-stop';b.textContent='End conversation';b.disabled=false}else{b.className='btn btn-go';b.textContent='Start talking';b.disabled=false}}
+
+// Timer
+function startTmr(){t0=Date.now();$('tmr').className='timer on';tmrI=setInterval(()=>{const s=Math.floor((Date.now()-t0)/1000),m=Math.floor(s/60);$('tmr').textContent=`${m}:${String(s%60).padStart(2,'0')}`;if(s>=25*60)$('tmr').className='timer warn';if(s>=MAX_MINS*60&&!cap)triggerCap()},1000)}
+function stopTmr(){clearInterval(tmrI);$('tmr').textContent='0:00';$('tmr').className='timer'}
+function triggerCap(){cap=true;if(dc?.readyState==='open'){dc.send(JSON.stringify({type:'response.create',response:{modalities:['text','audio'],instructions:`We've been talking ${MAX_MINS} min. Wrap up warmly.`}}));bye=true}}
+
+// Words
+function mkW(t){const c=t.replace(/^[""'«(]+|[.,!?;:""'»)—-]+$/g,'');const e=document.createElement('span');e.className='w'+(c&&isPt(c)?' pt':'');e.textContent=t;if(c){e.dataset.word=c;e.addEventListener('click',ev=>{ev.stopPropagation();showTip(c,e)})}return e}
+function mkSp(){const e=document.createElement('span');e.className='sp';e.textContent=' ';return e}
+function fillWords(el,txt){txt.split(/(\s+)/).forEach(t=>{if(/^\s+$/.test(t))el.appendChild(mkSp());else if(t)el.appendChild(mkW(t))})}
+
+// Live stream
+function onD(d){if(!lunaT)$('live').innerHTML='';lunaT+=d;for(const ch of d){if(ch===' '||ch==='\n'){if(wBuf){if(wEl){wEl.remove();wEl=null}$('live').appendChild(mkW(wBuf));wBuf=''}$('live').appendChild(mkSp())}else{wBuf+=ch;if(!wEl){wEl=document.createElement('span');wEl.className='w-live';$('live').appendChild(wEl)}wEl.textContent=wBuf}}}
+function onDone(){if(wBuf){if(wEl){wEl.remove();wEl=null}$('live').appendChild(mkW(wBuf));wBuf=''}if(wEl){wEl.remove();wEl=null}const t=lunaT.trim();if(t){transcript.push({role:'assistant',text:t});addMsg('luna',t)}lunaT='';$('live').innerHTML=''}
+
+function addMsg(r,t){const w=$('welc');if(w)w.remove();const m=document.createElement('div');m.className='msg '+r;const b=document.createElement('div');b.className='bubble';if(r==='luna')fillWords(b,t);else b.textContent=t;m.appendChild(b);$('chat').appendChild(m);$('chat').scrollTop=$('chat').scrollHeight}
+
+// Tooltip
+async function showTip(w,a){if(popup){popup.remove();popup=null}const tt=document.createElement('div');tt.className='tip';tt.innerHTML=`<div class="tip-w">${w}</div><div class="tip-spin"></div>`;document.body.appendChild(tt);popup=tt;posTip(tt,a);const k=w.toLowerCase();if(!tcache[k]){try{const r=await fetch('/translate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({word:w})});tcache[k]=await r.json()}catch{tcache[k]={translation:'—',language:'unknown'}}}if(tt!==popup)return;const d=tcache[k];let h='';if(d.language==='pt')h+='<div class="tip-b">Portuguese</div>';h+=`<div class="tip-w">${w}</div><div class="tip-d">${d.translation||'—'}</div>`;if(d.note)h+=`<div class="tip-n">${d.note}</div>`;tt.innerHTML=h;setTimeout(()=>{if(tt===popup){tt.remove();popup=null}},4000)}
+function posTip(el,a){const r=a.getBoundingClientRect();let t=r.top-90;if(t<10)t=r.bottom+8;let l=r.left+r.width/2-110;l=Math.max(8,Math.min(l,innerWidth-228));Object.assign(el.style,{top:t+'px',left:l+'px',width:'220px'})}
+document.addEventListener('click',()=>{if(popup){popup.remove();popup=null}});
+
+// PTT
+function setMode(p){ptt=p;$('mO').className='mode-o'+(!p?' on':'');$('mP').className='mode-o'+(p?' on':'');$('pttBtn').className='btn-ptt'+(p?' show':'');if(stream)stream.getAudioTracks().forEach(t=>{t.enabled=!p})}
+function pttOn(e){e.preventDefault();if(!ptt||!stream)return;stream.getAudioTracks().forEach(t=>{t.enabled=true});$('pttBtn').classList.add('on')}
+function pttOff(e){e.preventDefault();if(!ptt||!stream)return;stream.getAudioTracks().forEach(t=>{t.enabled=false});$('pttBtn').classList.remove('on')}
+
+// Reinforcement
+function startRein(){reinI=setInterval(()=>{if(dc?.readyState==='open')dc.send(JSON.stringify({type:'conversation.item.create',item:{type:'message',role:'system',content:[{type:'input_text',text:'Stay in English. Portuguese only 1-2 words per response, translated. Short responses.'}]}}))},60000)}
+
+// Context triggers
+const CTX_MAP={'restaurant|food|eat|hungry|dinner|lunch|breakfast':['conta','garçom','cardápio','fome','gostoso','almoço','jantar'],'beach|surf|copacabana|ipanema|sand|ocean|swim':['praia','calor','sol'],'money|pay|expensive|cheap|buy|price':['dinheiro','caro','barato','cartão','troco','quanto custa'],'drink|beer|bar|coffee|water|thirsty':['cerveja','café','água','sede','boteco'],'tired|sleep|hot|cold|weather':['cansado','calor','frio','chuva','sol']};
+function checkCtx(txt){const lo=txt.toLowerCase();for(const[kw,words]of Object.entries(CTX_MAP)){if(kw.split('|').some(k=>lo.includes(k))){const rev=words.filter(w=>vocabMap[w]&&vocabMap[w]<90);if(rev.length&&dc?.readyState==='open'){dc.send(JSON.stringify({type:'conversation.item.create',item:{type:'message',role:'system',content:[{type:'input_text',text:`He's talking about ${kw.split('|')[0]}. Words you've used before: ${rev.join(', ')}. Work them in.`}]}}));return}}}}
+
+// Events
+function handleEvt(e){if(!e?.type)return;switch(e.type){
+case 'response.output_audio_transcript.delta':case 'response.audio_transcript.delta':if(e.delta){setSt('Luna is talking…','speak');onD(e.delta)}break;
+case 'response.output_audio_transcript.done':case 'response.audio_transcript.done':onDone();setSt(ptt?'Hold to talk':'Listening…','listen');break;
+case 'response.done':setSt(ptt?'Hold to talk':'Listening…','listen');if(bye){bye=false;setTimeout(endSession,2000)}break;
+case 'conversation.item.input_audio_transcription.completed':{const t=e.transcript?.trim();if(!t)break;addMsg('user',t);transcript.push({role:'user',text:t});const lo=t.toLowerCase();if(GOODBYE.some(p=>lo.includes(p)))bye=true;checkCtx(t);const conf=CONFUSE.some(s=>s.length<=4?lo===s||lo===s.replace('?',''):lo.includes(s));if(conf&&dc?.readyState==='open')dc.send(JSON.stringify({type:'conversation.item.create',item:{type:'message',role:'system',content:[{type:'input_text',text:"He didn't understand. Say it again in plain English."}]}}));break}
+case 'input_audio_buffer.speech_started':setSt('Listening…','listen');break;
+case 'input_audio_buffer.speech_stopped':setSt('Thinking…','');break;
+case 'error':console.error('RT error:',e);setSt(e.error?.message||'Error','');break;
+}}
+
+// Session
+async function startSession(){state='wait';setBtn('wait');setSt('Connecting…','');bye=false;cap=false;transcript=[];$('chat').innerHTML='';$('live').innerHTML='';
+try{const sr=await fetch('/session',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});if(!sr.ok)throw new Error((await sr.json().catch(()=>({}))).error||'Server error');const sd=await sr.json();const key=sd.value;if(!key)throw new Error('No key');vocabMap=sd.vocabMastery||{};
+stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
+pc=new RTCPeerConnection();pc.ontrack=e=>{$('aud').srcObject=e.streams[0]};stream.getTracks().forEach(t=>pc.addTrack(t,stream));dc=pc.createDataChannel('oai-events');
+dc.onopen=()=>{state='live';setBtn('live');setSt('Listening…','listen');startTmr();$('modeTog').classList.add('show');startRein();
+dc.send(JSON.stringify({type:'session.update',session:{type:'realtime',turn_detection:{type:'server_vad',threshold:.7,prefix_padding_ms:300,silence_duration_ms:1000},input_audio_transcription:{model:'whisper-1'}}}));
+setTimeout(()=>dc.send(JSON.stringify({type:'response.create',response:{modalities:['text','audio']}})),400)};
+dc.onmessage=e=>{try{handleEvt(JSON.parse(e.data))}catch(err){console.error('Parse:',err.message)}};
+const offer=await pc.createOffer();await pc.setLocalDescription(offer);const model=sd.model||'gpt-realtime-mini';
+const sdpR=await fetch(`https://api.openai.com/v1/realtime/calls?model=${encodeURIComponent(model)}`,{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/sdp'},body:offer.sdp});
+if(!sdpR.ok)throw new Error('SDP failed');await pc.setRemoteDescription({type:'answer',sdp:await sdpR.text()})
+}catch(err){console.error('Start:',err);setSt(err.message,'');setBtn('idle');state='idle';stopTmr();cleanup()}}
+
+function endSession(){if(state==='idle')return;const tr=[...transcript],dur=t0?Math.round((Date.now()-t0)/1000):0;
+state='idle';stopTmr();clearInterval(reinI);setBtn('idle');setSt('Ready','');$('modeTog').classList.remove('show');$('pttBtn').className='btn-ptt';if(ptt)setMode(false);
+if(tr.length)fetch('/session/end',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({transcript:tr,duration_seconds:dur})}).then(()=>setTimeout(showRecap,3500)).catch(e=>console.warn('Save:',e.message));
+transcript=[];t0=null;bye=false;cap=false;cleanup()}
+
+function cleanup(){if(dc){try{dc.close()}catch{}dc=null}if(pc){try{pc.close()}catch{}pc=null}if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}$('aud').srcObject=null;lunaT='';wBuf='';wEl=null;if(popup){popup.remove();popup=null}}
+function go(){if(state==='idle')startSession();else if(state==='live')endSession()}
+
+// Panel
+let panelOpen=false;
+function togglePanel(){panelOpen=!panelOpen;$('overlay').className='overlay'+(panelOpen?' open':'');$('panel').className='panel'+(panelOpen?' open':'');if(panelOpen)loadProgress()}
+
+async function loadProgress(){try{const r=await fetch('/progress');const d=await r.json();if(!d.profile)return;
+$('pnlHero').innerHTML=`<div class="hero-num">${d.profile.words_known||0}</div><div class="hero-label">words known</div>`;
+$('pnlPhase').innerHTML=`<div style="font-size:14px;font-weight:500;color:var(--text)">${d.profile.current_phase_name||'Survival'}</div><div class="phase-bar"><div class="phase-fill" style="width:${d.phaseCompletion||0}%"></div></div><div class="phase-lbl">${d.phaseCompletion||0}% complete</div>`;
+$('pnlStats').innerHTML=`<div class="stat-row"><div class="stat"><div class="stat-val">${Math.round(d.profile.comprehension_score||0)}</div><div class="stat-lbl">Comprehension</div></div><div class="stat"><div class="stat-val">${Math.round(d.profile.production_score||0)}</div><div class="stat-lbl">Production</div></div><div class="stat"><div class="stat-val">${Math.round(d.profile.accuracy_score||0)}</div><div class="stat-lbl">Accuracy</div></div></div><div class="stat-row"><div class="stat"><div class="stat-val">${d.profile.total_sessions||0}</div><div class="stat-lbl">Sessions</div></div><div class="stat"><div class="stat-val">${d.profile.total_minutes||0}</div><div class="stat-lbl">Minutes</div></div></div>`;
+
+if(d.vocabulary?.length){let vh='';d.vocabulary.forEach(v=>{const ms=Math.round(v.mastery_score||0);const col=ms>=70?'var(--green)':ms>=30?'var(--pt)':'var(--accent)';vh+=`<div class="vocab-item"><div><span class="vocab-w">${v.word}</span> <span class="vocab-t">${v.translation||''}</span></div><div class="vocab-m"><div class="vocab-mf" style="width:${ms}%;background:${col}"></div></div></div>`});$('pnlVocab').innerHTML=vh}
+
+if(d.sessions?.length){let sh='';d.sessions.forEach(s=>{const dt=new Date(s.started_at);const df=dt.toLocaleDateString('en',{month:'short',day:'numeric'});const mins=Math.round((s.duration_seconds||0)/60);sh+=`<div class="sess-item"><div class="sess-date">${df} · ${mins} min${s.user_mood?' · '+s.user_mood:''}</div><div class="sess-sum">${s.session_summary||'No summary'}</div></div>`});$('pnlSessions').innerHTML=sh}
+}catch(e){console.error('Progress load:',e)}}
+
+// Recap
+async function showRecap(){try{const r=await fetch('/recap/latest');const d=await r.json();if(!d)return;const mins=Math.round((d.duration_seconds||0)/60);
+let tags='';(d.new_words_introduced||[]).forEach(w=>{tags+=`<span class="recap-tag recap-new">${w.word||w}</span>`});
+(d.production_words||[]).forEach(w=>{tags+=`<span class="recap-tag recap-rev">${w} ✓</span>`});
+$('recap').innerHTML=`<div class="recap-top"><span class="recap-title">Session complete</span><span class="recap-dur">${mins} min</span></div>${tags?`<div class="recap-words">${tags}</div>`:''}<div class="recap-sum">${d.session_summary||''}</div>`;
+$('recap').classList.add('show');setTimeout(()=>$('recap').classList.remove('show'),10000)}catch(e){console.error('Recap:',e)}}
 </script>
 </body>
 </html>
