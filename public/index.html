@@ -724,12 +724,34 @@ function stopReinforcement() {
 function handleEvent(evt) {
   if (!evt?.type) return;
 
+  // Debug: log all event types (remove this once stable)
+  if (!evt.type.startsWith('response.audio.') && !evt.type.startsWith('response.output_audio.') && evt.type !== 'input_audio_buffer.speech_started') {
+    console.log('[Luna event]', evt.type, evt.delta ? '(delta)' : '', evt.transcript ? `"${evt.transcript.slice(0,40)}"` : '');
+  }
+
   switch (evt.type) {
+    // GA event names (current)
+    case 'response.output_audio_transcript.delta':
+    // Beta event names (fallback)
     case 'response.audio_transcript.delta':
       if (evt.delta) { setStatus('Luna is talking…', 'speaking'); onDelta(evt.delta); }
       break;
 
+    // GA event names (current)
+    case 'response.output_audio_transcript.done':
+    // Beta event names (fallback)
     case 'response.audio_transcript.done':
+      onResponseDone();
+      setStatus(pushMode ? 'Hold to talk' : 'Listening…', 'listening');
+      break;
+
+    // GA text output (if model sends text alongside audio)
+    case 'response.output_text.delta':
+      if (evt.delta && !lunaText) { setStatus('Luna is talking…', 'speaking'); onDelta(evt.delta); }
+      break;
+
+    case 'response.output_text.done':
+      if (!lunaText) break; // only handle if no audio transcript came through
       onResponseDone();
       setStatus(pushMode ? 'Hold to talk' : 'Listening…', 'listening');
       break;
@@ -832,6 +854,7 @@ async function startSession() {
       dc.send(JSON.stringify({
         type: 'session.update',
         session: {
+          type: 'realtime',
           turn_detection: { type: 'server_vad', threshold: 0.7, prefix_padding_ms: 300, silence_duration_ms: 1000 },
           input_audio_transcription: { model: 'whisper-1' },
         }
@@ -846,7 +869,7 @@ async function startSession() {
       }, 400);
     };
 
-    dc.onmessage = e => { try { handleEvent(JSON.parse(e.data)); } catch {} };
+    dc.onmessage = e => { try { handleEvent(JSON.parse(e.data)); } catch(err) { console.error('[Luna parse error]', err.message, e.data?.slice?.(0,100)); } };
 
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
