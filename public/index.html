@@ -6,21 +6,21 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Luna" />
-  <meta name="theme-color" content="#0A0A0A" />
-  <title>Luna — Portuguese Tutor</title>
+  <meta name="theme-color" content="#0C0A10" />
+  <title>Luna</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #0A0A0A;
-      --surface: #141414;
-      --border: #222;
-      --text: #F0F0F0;
-      --muted: #666;
-      --accent: #FF6B4A;
-      --accent2: #FF8C42;
-      --user-bubble: #1a1208;
-      --luna-bubble: #1a0e08;
+      --bg:       #0C0A10;
+      --surface:  #17131F;
+      --surface2: #211C2E;
+      --border:   #2A2438;
+      --text:     #EDE8F5;
+      --muted:    #6B607E;
+      --accent:   #FF6B4A;
+      --accent2:  #FF9A5C;
+      --pt:       #E8B86D;
     }
 
     html, body {
@@ -47,18 +47,17 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 14px 20px 10px;
-      border-bottom: 1px solid var(--border);
+      padding: 14px 20px 12px;
       flex-shrink: 0;
     }
 
     .logo {
-      font-size: 17px;
-      font-weight: 600;
+      font-size: 16px;
+      font-weight: 700;
       letter-spacing: 0.01em;
     }
-
-    .logo span {
+    .logo em {
+      font-style: normal;
       background: linear-gradient(135deg, var(--accent), var(--accent2));
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
@@ -68,619 +67,529 @@
     .header-right {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
     }
 
     .timer {
-      font-size: 13px;
+      font-size: 12px;
       font-variant-numeric: tabular-nums;
+      letter-spacing: 0.05em;
       color: var(--muted);
-      letter-spacing: 0.04em;
-      min-width: 38px;
+      min-width: 36px;
       text-align: right;
     }
-
-    .timer.active { color: var(--accent); }
+    .timer.active  { color: var(--accent); }
     .timer.warning { color: #f87171; }
 
-    /* PTT toggle pill */
     .ptt-pill {
-      display: flex;
+      display: none;
       align-items: center;
-      background: var(--surface);
+      background: var(--surface2);
       border: 1px solid var(--border);
       border-radius: 100px;
       padding: 3px;
       gap: 2px;
     }
+    .ptt-pill.show { display: flex; }
 
-    .ptt-option {
-      padding: 4px 10px;
+    .ptt-opt {
+      padding: 3px 10px;
       border-radius: 100px;
       font-size: 11px;
       font-weight: 600;
-      letter-spacing: 0.02em;
       color: var(--muted);
       cursor: pointer;
-      transition: background 0.15s, color 0.15s;
-      -webkit-tap-highlight-color: transparent;
       user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      transition: background 0.15s, color 0.15s;
     }
+    .ptt-opt.on { background: var(--accent); color: #fff; }
 
-    .ptt-option.selected {
-      background: var(--accent);
-      color: white;
-    }
-
-    /* ── Orb ── */
-    .orb-area {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 20px 20px 16px;
-      flex-shrink: 0;
-      gap: 12px;
-    }
-
-    .orb-wrap {
-      position: relative;
-      width: 110px;
-      height: 110px;
-    }
-
-    .orb-ring {
-      position: absolute;
-      inset: -12px;
-      border-radius: 50%;
-      background: conic-gradient(from 0deg, var(--accent), var(--accent2), var(--accent));
-      opacity: 0;
-      filter: blur(8px);
-      transition: opacity 0.6s ease;
-    }
-
-    .orb-ring.active  { opacity: 0.45; animation: spin 4s linear infinite; }
-    .orb-ring.speaking { opacity: 0.75; animation: spin 2s linear infinite; }
-
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    .orb {
-      position: relative;
-      z-index: 1;
-      width: 100%;
-      height: 100%;
-      border-radius: 50%;
-      background: radial-gradient(circle at 35% 35%, #2a1208, #0d0d0d);
-      border: 1.5px solid #2a1208;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: border-color 0.4s ease;
-    }
-
-    .orb.active   { border-color: var(--accent); animation: pulse 2.5s ease-in-out infinite; }
-    .orb.speaking { border-color: var(--accent2); animation: pulse-fast 1.2s ease-in-out infinite; }
-
-    @keyframes pulse {
-      0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,107,74,0); }
-      50% { transform: scale(1.04); box-shadow: 0 0 20px 6px rgba(255,107,74,0.2); }
-    }
-    @keyframes pulse-fast {
-      0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,140,66,0); }
-      50% { transform: scale(1.06); box-shadow: 0 0 24px 8px rgba(255,140,66,0.25); }
-    }
-
-    .orb svg { width: 40px; height: 40px; opacity: 0.5; transition: opacity 0.3s; }
-    .orb.active svg, .orb.speaking svg { opacity: 1; }
-
-    .status-text {
-      font-size: 13px;
-      color: var(--muted);
-      letter-spacing: 0.02em;
-      min-height: 18px;
-      transition: color 0.3s;
-    }
-
-    .status-text.active   { color: #fb923c; }
-    .status-text.speaking { color: #fbbf24; }
-    .status-text.error    { color: #f87171; }
-
-    /* ── Transcript ── */
-    .transcript {
+    /* ── History ── */
+    #history {
       flex: 1;
       overflow-y: auto;
-      padding: 10px 16px;
+      padding: 6px 20px 14px;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 10px;
       -webkit-overflow-scrolling: touch;
     }
+    #history::-webkit-scrollbar { width: 2px; }
+    #history::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
 
-    .transcript:empty::after {
-      content: "Your conversation will appear here";
-      color: var(--muted);
-      font-size: 13px;
-      text-align: center;
-      margin-top: 20px;
-      display: block;
-    }
+    .turn { display: flex; flex-direction: column; gap: 3px; }
 
-    .bubble {
-      max-width: 82%;
-      padding: 9px 13px;
-      border-radius: 16px;
-      font-size: 14px;
-      line-height: 1.45;
-      animation: fadeUp 0.2s ease;
-    }
-
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(5px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-
-    .bubble.user {
-      align-self: flex-end;
-      background: var(--user-bubble);
-      border: 1px solid #3a2010;
-      color: #fdba74;
-      border-bottom-right-radius: 4px;
-    }
-
-    .bubble.luna {
-      align-self: flex-start;
-      background: var(--luna-bubble);
-      border: 1px solid #3a1a08;
-      color: #fcd34d;
-      border-bottom-left-radius: 4px;
-    }
-
-    .bubble .speaker {
+    .turn-label {
       font-size: 10px;
       font-weight: 600;
-      letter-spacing: 0.06em;
+      letter-spacing: 0.07em;
       text-transform: uppercase;
-      opacity: 0.45;
-      margin-bottom: 3px;
+      color: var(--muted);
     }
 
+    .turn-body {
+      font-size: 14px;
+      line-height: 1.55;
+      color: rgba(237, 232, 245, 0.55);
+      display: flex;
+      flex-wrap: wrap;
+    }
+    .turn-body.you {
+      color: rgba(255, 154, 92, 0.75);
+      justify-content: flex-end;
+    }
+
+    /* ── Divider ── */
+    .rule {
+      flex-shrink: 0;
+      height: 1px;
+      margin: 0 20px;
+      background: linear-gradient(90deg, transparent, var(--border) 15%, var(--border) 85%, transparent);
+    }
+
+    /* ── Live area ── */
+    #live {
+      flex-shrink: 0;
+      padding: 14px 20px 8px;
+      min-height: 130px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    #statusRow {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 18px;
+    }
+
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--muted);
+      flex-shrink: 0;
+      transition: background 0.3s;
+    }
+    .dot.listening { background: var(--accent); animation: pulse 1.4s ease-in-out infinite; }
+    .dot.speaking  { background: var(--accent2); animation: pulse 0.7s ease-in-out infinite; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.3; transform: scale(0.8); }
+    }
+
+    #statusTxt {
+      font-size: 12px;
+      color: var(--muted);
+      letter-spacing: 0.02em;
+    }
+
+    #liveText {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      min-height: 54px;
+    }
+
+    /* ── Word components ── */
+    .w {
+      font-size: 20px;
+      font-weight: 400;
+      line-height: 1.5;
+      color: var(--text);
+      cursor: pointer;
+      border-radius: 4px;
+      padding: 0 2px;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      transition: background 0.1s, color 0.1s;
+      display: inline;
+    }
+    .w:hover, .w:active {
+      background: rgba(255, 107, 74, 0.18);
+      color: var(--accent2);
+    }
+    .w.pt { color: var(--pt); }
+    .w.pt:hover, .w.pt:active {
+      background: rgba(232, 184, 109, 0.18);
+      color: #F5C87A;
+    }
+
+    /* smaller word for history */
+    .w.sm {
+      font-size: 14px;
+      padding: 0 1px;
+    }
+
+    .wlive {
+      font-size: 20px;
+      line-height: 1.5;
+      color: rgba(237, 232, 245, 0.28);
+      padding: 0 2px;
+      display: inline;
+      pointer-events: none;
+    }
+
+    @keyframes wIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .win { animation: wIn 0.16s ease forwards; }
+
     /* ── Controls ── */
-    .controls {
-      padding: 12px 20px 16px;
+    #controls {
+      flex-shrink: 0;
+      padding: 10px 20px 18px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 10px;
-      flex-shrink: 0;
-      border-top: 1px solid var(--border);
+      gap: 8px;
     }
 
     .btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-      padding: 15px 40px;
-      border-radius: 100px;
-      border: none;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: transform 0.15s ease, opacity 0.2s;
-      -webkit-tap-highlight-color: transparent;
-      outline: none;
-      letter-spacing: 0.01em;
       width: 100%;
       max-width: 320px;
+      padding: 16px;
+      border: none;
+      border-radius: 100px;
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      outline: none;
+      transition: transform 0.12s, opacity 0.2s;
     }
-
     .btn:active { transform: scale(0.97); }
-    .btn:disabled { opacity: 0.38; cursor: not-allowed; }
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
     .btn-start {
       background: linear-gradient(135deg, var(--accent), var(--accent2));
-      color: white;
-      box-shadow: 0 4px 20px rgba(255,107,74,0.35);
+      color: #fff;
+      box-shadow: 0 4px 28px rgba(255, 107, 74, 0.38);
     }
-
     .btn-end {
-      background: #1a0a0a;
-      border: 1.5px solid #7f1d1d;
+      background: var(--surface2);
+      border: 1.5px solid #4A1515;
       color: #fca5a5;
     }
-
-    .btn-loading {
-      background: var(--surface);
+    .btn-load {
+      background: var(--surface2);
       border: 1.5px solid var(--border);
       color: var(--muted);
     }
 
-    /* Push-to-talk hold button */
-    .ptt-hold-btn {
+    .btn-ptt {
       display: none;
-      align-items: center;
-      justify-content: center;
       width: 100%;
       max-width: 320px;
-      padding: 15px;
+      padding: 14px;
       border-radius: 100px;
-      border: 2px solid var(--accent);
+      border: 1.5px solid var(--border);
       background: transparent;
-      color: var(--accent);
-      font-size: 15px;
+      color: var(--muted);
+      font-size: 14px;
       font-weight: 600;
       cursor: pointer;
       -webkit-tap-highlight-color: transparent;
       outline: none;
       user-select: none;
-      transition: background 0.1s, color 0.1s;
+      transition: border-color 0.1s, background 0.1s, color 0.1s;
     }
+    .btn-ptt.show { display: block; }
+    .btn-ptt.pressed { background: var(--accent); border-color: var(--accent); color: #fff; }
 
-    .ptt-hold-btn.pressed {
-      background: var(--accent);
-      color: white;
-    }
-
-    .mic-dot {
-      width: 8px;
-      height: 8px;
+    .recdot {
+      display: inline-block;
+      width: 7px; height: 7px;
       border-radius: 50%;
-      background: currentColor;
-      animation: blink 1s ease-in-out infinite;
-    }
-
-    @keyframes blink {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.25; }
-    }
-
-    .transcript::-webkit-scrollbar { width: 3px; }
-    .transcript::-webkit-scrollbar-track { background: transparent; }
-    .transcript::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-
-    /* ── Word-by-word display ── */
-    .words-wrap {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: baseline;
-      gap: 0;
-      line-height: 1.75;
-    }
-
-    .word {
-      display: inline;
-      cursor: pointer;
-      border-radius: 3px;
-      padding: 1px 1px;
-      margin: 0 1px;
-      transition: background 0.12s, color 0.12s;
-      -webkit-tap-highlight-color: transparent;
-      user-select: none;
-    }
-
-    .word:hover, .word:active {
-      background: rgba(255, 107, 74, 0.18);
-      color: #ffb38a;
-    }
-
-    .word-pt {
-      text-decoration: underline;
-      text-decoration-color: rgba(255, 107, 74, 0.5);
-      text-decoration-thickness: 1.5px;
-      text-underline-offset: 3px;
-    }
-
-    .word-live {
-      color: rgba(252, 211, 77, 0.45);
-      cursor: default;
-      pointer-events: none;
-      padding: 1px 1px;
-      margin: 0 1px;
-    }
-
-    @keyframes wordIn {
-      from { opacity: 0; transform: translateY(3px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-
-    .word-in {
-      animation: wordIn 0.14s ease forwards;
+      background: #f87171;
+      margin-right: 7px;
+      animation: pulse 1s ease-in-out infinite;
+      vertical-align: middle;
     }
 
     /* ── Translation popup ── */
-    .translate-popup {
+    .tp {
       position: fixed;
-      z-index: 999;
-      min-width: 140px;
-      max-width: 210px;
-      background: rgba(14, 14, 14, 0.96);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 107, 74, 0.35);
-      border-radius: 12px;
-      padding: 10px 14px 11px;
-      box-shadow: 0 12px 40px rgba(0,0,0,0.55);
+      z-index: 9999;
+      min-width: 150px;
+      max-width: 220px;
+      background: rgba(10, 8, 14, 0.97);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(255, 107, 74, 0.4);
+      border-radius: 14px;
+      padding: 13px 16px 14px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.7);
       pointer-events: none;
-      animation: popIn 0.15s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+      animation: tpIn 0.17s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
     }
-
-    @keyframes popIn {
-      from { opacity: 0; transform: scale(0.92) translateY(6px); }
+    @keyframes tpIn {
+      from { opacity: 0; transform: scale(0.86) translateY(10px); }
       to   { opacity: 1; transform: scale(1) translateY(0); }
     }
 
-    .tp-word {
-      font-size: 15px;
-      font-weight: 600;
-      color: #FF8C42;
-      letter-spacing: 0.01em;
-      margin-bottom: 5px;
-    }
+    .tp-word { font-size: 18px; font-weight: 600; color: var(--accent2); margin-bottom: 7px; }
 
-    .tp-meta {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      flex-wrap: wrap;
-    }
+    .tp-row { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; }
 
     .tp-badge {
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: 0.04em;
+      font-size: 9px; font-weight: 700; letter-spacing: 0.09em;
       text-transform: uppercase;
-      background: rgba(255, 107, 74, 0.15);
-      color: #FF8C42;
-      padding: 2px 7px;
+      background: rgba(232, 184, 109, 0.16);
+      color: var(--pt);
+      padding: 3px 8px;
       border-radius: 20px;
       flex-shrink: 0;
+      margin-top: 1px;
     }
 
-    .tp-translation {
-      font-size: 13px;
-      color: #F0F0F0;
-      line-height: 1.4;
-    }
+    .tp-def { font-size: 14px; color: var(--text); line-height: 1.4; }
 
-    .tp-note {
-      display: block;
-      font-size: 11px;
-      color: #666;
-      margin-top: 4px;
-      line-height: 1.35;
-    }
+    .tp-note { font-size: 11px; color: var(--muted); margin-top: 5px; line-height: 1.35; }
 
-    .tp-spinner {
+    .tp-spin {
       display: inline-block;
-      width: 13px;
-      height: 13px;
-      border: 1.5px solid rgba(255,107,74,0.25);
-      border-top-color: #FF6B4A;
+      width: 15px; height: 15px;
+      border: 1.5px solid rgba(255,107,74,0.2);
+      border-top-color: var(--accent);
       border-radius: 50%;
       animation: spin 0.65s linear infinite;
-      vertical-align: middle;
-      margin-right: 6px;
     }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
 <div id="app">
+
   <header>
-    <div class="logo">Luna <span>·</span> Rio</div>
+    <div class="logo">Luna <em>·</em> Rio</div>
     <div class="header-right">
-      <div class="ptt-pill" id="pttPill" style="display:none">
-        <div class="ptt-option selected" id="pttOpen" onclick="setPTT(false)">Open</div>
-        <div class="ptt-option" id="pttPush" onclick="setPTT(true)">Hold</div>
+      <div class="ptt-pill" id="pttPill">
+        <div class="ptt-opt on" id="pttOpen" onclick="setPTT(false)">Open</div>
+        <div class="ptt-opt" id="pttPush" onclick="setPTT(true)">Hold</div>
       </div>
       <div class="timer" id="timer">00:00</div>
     </div>
   </header>
 
-  <div class="orb-area">
-    <div class="orb-wrap">
-      <div class="orb-ring" id="orbRing"></div>
-      <div class="orb" id="orb">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 2a3 3 0 0 1 3 3v7a3 3 0 0 1-6 0V5a3 3 0 0 1 3-3z"/>
-          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-          <line x1="12" y1="19" x2="12" y2="22"/>
-          <line x1="8" y1="22" x2="16" y2="22"/>
-        </svg>
-      </div>
+  <div id="history"></div>
+
+  <div class="rule"></div>
+
+  <div id="live">
+    <div id="statusRow">
+      <span class="dot" id="dot"></span>
+      <span id="statusTxt">Tap to start talking with Luna</span>
     </div>
-    <div class="status-text" id="statusText">Tap to start talking with Luna</div>
+    <div id="liveText"></div>
   </div>
 
-  <div class="transcript" id="transcript"></div>
-
-  <div class="controls">
-    <button class="btn btn-start" id="mainBtn" onclick="handleButton()">
-      Start Conversation
-    </button>
-    <button class="ptt-hold-btn" id="pttHoldBtn"
+  <div id="controls">
+    <button class="btn btn-start" id="mainBtn" onclick="handleButton()">Start Conversation</button>
+    <button class="btn-ptt" id="pttHoldBtn"
       ontouchstart="pttUnmute(event)" ontouchend="pttMute(event)"
       onmousedown="pttUnmute(event)" onmouseup="pttMute(event)">
       Hold to Talk
     </button>
   </div>
+
 </div>
 
 <audio id="remoteAudio" autoplay playsinline></audio>
 
 <script>
-  // ── Constants ────────────────────────────────────────────────────────────
-  const MAX_SESSION_MINUTES = 30;
-  const GOODBYE_PHRASES = [
-    "that's all for now", "bye", "tchau", "até mais", "talk later",
-    "gotta go", "see you later", "good night", "boa noite", "falou",
-    "see ya", "goodbye", "ciao", "até logo",
-  ];
+  const MAX_MINS = 30;
 
-  // ── State ────────────────────────────────────────────────────────────────
+  const GOODBYE = ["that's all for now","bye","tchau","até mais","talk later",
+    "gotta go","see you later","good night","boa noite","falou","see ya",
+    "goodbye","ciao","até logo"];
+
+  const CONFUSION = ["i don't understand","i don't get it","in english",
+    "english please","what does that mean","what did you say","come again",
+    "i'm lost","i'm confused","what was that"];
+
+  const PT_CHARS = /[ãõâêîôûçáéíóúàü]/i;
+  const PT_WORDS = new Set(['tá','né','tô','cê','num','cara','gente','assim',
+    'então','tipo','nossa','oi','tchau','obrigado','obrigada','legal','saudade',
+    'carioca','boteco','praia','favela','rapaz','poxa','caramba','mano','véi',
+    'ótimo','beleza','valeu','falou','não','sim','muito','mais','para','com',
+    'uma','isso','bom','boa','bem','tudo','que','por','aqui','você','mas']);
+
+  function isPt(w) {
+    const c = w.toLowerCase().replace(/[.,!?;:'"«»()""]/g,'');
+    return PT_CHARS.test(c) || PT_WORDS.has(c);
+  }
+
+  // ── State ─────────────────────────────────────────────────────────────────
   let pc = null, dc = null, localStream = null;
   let sessionModel = 'gpt-realtime-mini';
-  let state = 'idle'; // idle | loading | connected
-  let lunaBuffer = '', lunaBubble = null;
-  let wordBuffer = '', wordsWrap = null, liveWordEl = null;
+  let state = 'idle';
+  let lunaBuffer = '', wordBuffer = '', liveWordEl = null;
   let sessionTranscript = [];
   let sessionStartTime = null;
   let timerInterval = null;
-  let reinforceInterval = null;
-  let translationCache = {};
-  let activePopup = null;
+  let pendingGoodbye = false, costCapTriggered = false, pttMode = false;
+  let translationCache = {}, activePopup = null;
 
-  const PT_CHARS = /[ãõâêîôûçáéíóúàü]/i;
-  const COMMON_PT = new Set([
-    'tá','né','tô','cê','num','cara','gente','aqui','assim','então','tipo',
-    'nossa','oi','tchau','obrigado','obrigada','legal','saudade','carioca',
-    'boteco','praia','favela','né','rapaz','poxa','caramba','mano','véi',
-    'ótimo','beleza','valeu','falou','tudo','bem','bom','boa','muito',
-    'mais','mas','que','para','por','com','uma','isso','não','sim',
-  ]);
-
-  function isPt(word) {
-    const w = word.toLowerCase().replace(/[.,!?;:'"«»()]/g, '');
-    return PT_CHARS.test(w) || COMMON_PT.has(w);
-  }
-
-  const CONFUSION_SIGNALS = [
-    "i don't understand", "i don't get it",
-    'in english', 'english please',
-    "what does that mean", "what did you say", "come again",
-    "i'm lost", "i'm confused", "what was that",
-  ];
-
-  function checkForConfusion(transcript) {
-    const lower = transcript.toLowerCase().trim();
-    return CONFUSION_SIGNALS.some(s => lower.includes(s));
-  }
-
-  function handleConfusion() {
-    if (dc && dc.readyState === 'open') {
-      dc.send(JSON.stringify({
-        type: 'conversation.item.create',
-        item: {
-          type: 'message',
-          role: 'system',
-          content: [{ type: 'input_text', text: 'He didn\'t follow that. Rephrase in plain English, naturally, like you just caught yourself. Keep going with the conversation.' }],
-        },
-      }));
-    }
-  }
-  let pendingGoodbye = false;
-  let costCapTriggered = false;
-  let pttMode = false;
-
-  // ── DOM refs ─────────────────────────────────────────────────────────────
-  const orbEl       = document.getElementById('orb');
-  const orbRing     = document.getElementById('orbRing');
-  const statusEl    = document.getElementById('statusText');
-  const transcriptEl = document.getElementById('transcript');
-  const mainBtn     = document.getElementById('mainBtn');
+  // ── DOM ────────────────────────────────────────────────────────────────────
+  const historyEl = document.getElementById('history');
+  const liveTextEl = document.getElementById('liveText');
+  const dotEl      = document.getElementById('dot');
+  const statusTxt  = document.getElementById('statusTxt');
+  const mainBtn    = document.getElementById('mainBtn');
+  const timerEl    = document.getElementById('timer');
+  const pttPill    = document.getElementById('pttPill');
+  const pttHoldBtn = document.getElementById('pttHoldBtn');
   const remoteAudio = document.getElementById('remoteAudio');
-  const timerEl     = document.getElementById('timer');
-  const pttPill     = document.getElementById('pttPill');
-  const pttHoldBtn  = document.getElementById('pttHoldBtn');
 
-  // ── UI helpers ───────────────────────────────────────────────────────────
-  function setStatus(text, cls) {
-    statusEl.textContent = text;
-    statusEl.className = 'status-text' + (cls ? ' ' + cls : '');
-  }
-
-  function setOrb(mode) {
-    orbEl.className = 'orb' + (mode ? ' ' + mode : '');
-    orbRing.className = 'orb-ring' + (mode ? ' ' + mode : '');
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  function setStatus(msg, mode) {
+    statusTxt.textContent = msg;
+    dotEl.className = 'dot' + (mode ? ' ' + mode : '');
   }
 
   function setBtn(mode) {
+    const b = mainBtn;
     if (mode === 'loading') {
-      mainBtn.className = 'btn btn-loading';
-      mainBtn.innerHTML = 'Connecting\u2026';
-      mainBtn.disabled = true;
+      b.className = 'btn btn-load'; b.textContent = 'Connecting…'; b.disabled = true;
     } else if (mode === 'connected') {
-      mainBtn.className = 'btn btn-end';
-      mainBtn.innerHTML = '<span class="mic-dot"></span>\u2002End Conversation';
-      mainBtn.disabled = false;
+      b.className = 'btn btn-end';
+      b.innerHTML = '<span class="recdot"></span>End Conversation';
+      b.disabled = false;
     } else {
-      mainBtn.className = 'btn btn-start';
-      mainBtn.innerHTML = 'Start Conversation';
-      mainBtn.disabled = false;
+      b.className = 'btn btn-start'; b.textContent = 'Start Conversation'; b.disabled = false;
     }
   }
 
-  function escHtml(s) {
-    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  // ── Timer ──────────────────────────────────────────────────────────────────
+  function startTimer() {
+    sessionStartTime = Date.now();
+    timerEl.className = 'timer active';
+    timerInterval = setInterval(() => {
+      const s = Math.floor((Date.now() - sessionStartTime) / 1000);
+      const m = Math.floor(s / 60);
+      timerEl.textContent = `${String(m).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+      if (s >= 25*60) timerEl.className = 'timer warning';
+      if (s >= MAX_MINS*60 && !costCapTriggered) triggerCostCap();
+    }, 1000);
   }
 
-  function addBubble(who, text) {
-    const div = document.createElement('div');
-    div.className = 'bubble ' + who;
-    div.innerHTML = `<div class="speaker">${who === 'user' ? 'You' : 'Luna'}</div>${escHtml(text)}`;
-    transcriptEl.appendChild(div);
-    transcriptEl.scrollTop = transcriptEl.scrollHeight;
-    return div;
+  function stopTimer() {
+    clearInterval(timerInterval); timerInterval = null;
+    timerEl.textContent = '00:00'; timerEl.className = 'timer';
   }
 
-  function updateLunaBubble(delta) {
+  function triggerCostCap() {
+    costCapTriggered = true;
+    if (dc?.readyState === 'open') {
+      dc.send(JSON.stringify({ type: 'response.create', response: { modalities: ['text','audio'],
+        instructions: `We've been chatting for ${MAX_MINS} minutes — time flies! Wrap up warmly and say a carioca goodbye.` } }));
+      pendingGoodbye = true;
+    }
+  }
+
+  // ── Word rendering ─────────────────────────────────────────────────────────
+  function makeWord(text, small) {
+    const clean = text.replace(/^["""'«(]+|[.,!?;:"""'»)]+$/g,'');
+    const el = document.createElement('span');
+    el.className = 'w win' + (small ? ' sm' : '') + (clean && isPt(clean) ? ' pt' : '');
+    el.textContent = text;
+    if (clean) {
+      el.dataset.word = clean;
+      el.addEventListener('click', e => { e.stopPropagation(); showTranslation(clean, el); });
+    }
+    return el;
+  }
+
+  function makeSpace() {
+    const el = document.createElement('span');
+    el.textContent = ' ';
+    el.style.cssText = 'display:inline;pointer-events:none;user-select:none';
+    return el;
+  }
+
+  // Stream live words into #liveText as delta arrives
+  function onDelta(delta) {
     lunaBuffer += delta;
-    if (!lunaBubble) {
-      lunaBubble = document.createElement('div');
-      lunaBubble.className = 'bubble luna';
-      lunaBubble.innerHTML = '<div class="speaker">Luna</div><div class="words-wrap"></div>';
-      transcriptEl.appendChild(lunaBubble);
-      wordsWrap = lunaBubble.querySelector('.words-wrap');
-    }
     for (const ch of delta) {
       if (ch === ' ' || ch === '\n') {
-        if (wordBuffer) { commitWord(wordBuffer); wordBuffer = ''; }
-        if (liveWordEl) { liveWordEl.remove(); liveWordEl = null; }
-        const sp = document.createElement('span');
-        sp.textContent = ' ';
-        sp.style.userSelect = 'none';
-        wordsWrap.appendChild(sp);
+        if (wordBuffer) {
+          if (liveWordEl) { liveWordEl.remove(); liveWordEl = null; }
+          liveTextEl.appendChild(makeWord(wordBuffer));
+          wordBuffer = '';
+        }
+        liveTextEl.appendChild(makeSpace());
       } else {
         wordBuffer += ch;
         if (!liveWordEl) {
           liveWordEl = document.createElement('span');
-          liveWordEl.className = 'word-live';
-          wordsWrap.appendChild(liveWordEl);
+          liveWordEl.className = 'wlive';
+          liveTextEl.appendChild(liveWordEl);
         }
         liveWordEl.textContent = wordBuffer;
       }
     }
-    transcriptEl.scrollTop = transcriptEl.scrollHeight;
   }
 
-  function commitWord(raw) {
-    if (liveWordEl) { liveWordEl.remove(); liveWordEl = null; }
-    const clean = raw.replace(/^["""'«(]+|[.,!?;:"""'»)]+$/g, '');
-    const span = document.createElement('span');
-    span.className = 'word word-in' + (clean && isPt(clean) ? ' word-pt' : '');
-    span.textContent = raw;
-    if (clean) {
-      span.dataset.word = clean;
-      span.addEventListener('click', e => { e.stopPropagation(); showTranslation(clean, span); });
+  // Luna finished speaking: commit remaining word, push full turn to history
+  function onDone() {
+    if (wordBuffer) {
+      if (liveWordEl) { liveWordEl.remove(); liveWordEl = null; }
+      liveTextEl.appendChild(makeWord(wordBuffer));
+      wordBuffer = '';
     }
-    wordsWrap.appendChild(span);
-  }
-
-  function flushLunaBubble() {
-    if (wordBuffer) { commitWord(wordBuffer); wordBuffer = ''; }
     if (liveWordEl) { liveWordEl.remove(); liveWordEl = null; }
-    if (lunaBuffer.trim()) {
-      sessionTranscript.push({ role: 'assistant', text: lunaBuffer.trim() });
+
+    const text = lunaBuffer.trim();
+    if (text) {
+      sessionTranscript.push({ role: 'assistant', text });
+
+      const turn = document.createElement('div');
+      turn.className = 'turn';
+      const label = document.createElement('div');
+      label.className = 'turn-label'; label.textContent = 'Luna';
+      const body = document.createElement('div');
+      body.className = 'turn-body';
+
+      text.split(/(\s+)/).forEach(tok => {
+        if (/^\s+$/.test(tok)) { body.appendChild(makeSpace()); }
+        else if (tok) { body.appendChild(makeWord(tok, true)); }
+      });
+
+      turn.appendChild(label); turn.appendChild(body);
+      historyEl.appendChild(turn);
+      historyEl.scrollTop = historyEl.scrollHeight;
     }
-    lunaBubble = null; wordsWrap = null; lunaBuffer = '';
+
+    liveTextEl.innerHTML = '';
+    lunaBuffer = '';
   }
 
-  // ── Translation popup ────────────────────────────────────────────────────
+  function addUserTurn(text) {
+    const turn = document.createElement('div');
+    turn.className = 'turn';
+    const label = document.createElement('div');
+    label.className = 'turn-label'; label.textContent = 'You';
+    const body = document.createElement('div');
+    body.className = 'turn-body you'; body.textContent = text;
+    turn.appendChild(label); turn.appendChild(body);
+    historyEl.appendChild(turn);
+    historyEl.scrollTop = historyEl.scrollHeight;
+  }
+
+  // ── Translation popup ──────────────────────────────────────────────────────
   async function showTranslation(word, anchor) {
     if (activePopup) { activePopup.remove(); activePopup = null; }
 
     const popup = document.createElement('div');
-    popup.className = 'translate-popup';
-    popup.innerHTML = `<div class="tp-word">${word}</div><div class="tp-meta"><span class="tp-spinner"></span></div>`;
+    popup.className = 'tp';
+    popup.innerHTML = `<div class="tp-word">${word}</div><div class="tp-row"><span class="tp-spin"></span></div>`;
     document.body.appendChild(popup);
     activePopup = popup;
     positionPopup(popup, anchor);
@@ -689,93 +598,47 @@
     if (!translationCache[key]) {
       try {
         const r = await fetch('/translate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ word }),
         });
         translationCache[key] = await r.json();
-      } catch {
-        translationCache[key] = { translation: '—', language: 'unknown' };
-      }
+      } catch { translationCache[key] = { translation: '—', language: 'unknown' }; }
     }
 
     if (popup !== activePopup) return;
     const d = translationCache[key];
-    popup.querySelector('.tp-meta').innerHTML =
-      (d.language === 'pt' ? '<span class="tp-badge">PT</span>' : '') +
-      `<span class="tp-translation">${d.translation || '—'}</span>` +
-      (d.note ? `<span class="tp-note">${d.note}</span>` : '');
-
+    popup.querySelector('.tp-row').innerHTML =
+      (d.language === 'pt' ? '<span class="tp-badge">PT · BR</span>' : '') +
+      `<span class="tp-def">${d.translation || '—'}</span>`;
+    if (d.note) {
+      const n = document.createElement('div');
+      n.className = 'tp-note'; n.textContent = d.note;
+      popup.appendChild(n);
+    }
     setTimeout(() => { if (popup === activePopup) { popup.remove(); activePopup = null; } }, 4500);
   }
 
   function positionPopup(popup, anchor) {
     const r = anchor.getBoundingClientRect();
-    const W = 200, gap = 10;
-    let top = r.top - 85 - gap;
+    const W = 220, gap = 10;
+    let top = r.top - 100 - gap;
     if (top < 10) top = r.bottom + gap;
-    let left = r.left + r.width / 2 - W / 2;
+    let left = r.left + r.width/2 - W/2;
     left = Math.max(8, Math.min(left, window.innerWidth - W - 8));
-    Object.assign(popup.style, { top: top + 'px', left: left + 'px', width: W + 'px' });
+    Object.assign(popup.style, { top: top+'px', left: left+'px', width: W+'px' });
   }
 
   document.addEventListener('click', () => {
     if (activePopup) { activePopup.remove(); activePopup = null; }
   });
 
-  // ── Timer ────────────────────────────────────────────────────────────────
-  function startTimer() {
-    sessionStartTime = Date.now();
-    timerEl.className = 'timer active';
-    timerInterval = setInterval(() => {
-      const elapsed = Math.floor((Date.now() - sessionStartTime) / 1000);
-      const mm = String(Math.floor(elapsed / 60)).padStart(2, '0');
-      const ss = String(elapsed % 60).padStart(2, '0');
-      timerEl.textContent = `${mm}:${ss}`;
-
-      // Warn at 25 min
-      if (elapsed >= 25 * 60 && elapsed < MAX_SESSION_MINUTES * 60) {
-        timerEl.className = 'timer warning';
-      }
-
-      // Cost cap at MAX_SESSION_MINUTES
-      if (elapsed >= MAX_SESSION_MINUTES * 60 && !costCapTriggered) {
-        triggerCostCap();
-      }
-    }, 1000);
-  }
-
-  function stopTimer() {
-    if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
-    timerEl.textContent = '00:00';
-    timerEl.className = 'timer';
-  }
-
-  // ── Cost cap ─────────────────────────────────────────────────────────────
-  function triggerCostCap() {
-    costCapTriggered = true;
-    if (dc && dc.readyState === 'open') {
-      dc.send(JSON.stringify({
-        type: 'response.create',
-        response: {
-          modalities: ['text', 'audio'],
-          instructions: `We've been chatting for ${MAX_SESSION_MINUTES} minutes — time flies! Wrap up warmly. Tell Shay it's been fun, suggest picking up where you left off tomorrow, and say a proper carioca goodbye. Keep it natural and affectionate, not abrupt.`,
-        },
-      }));
-      pendingGoodbye = true; // auto-disconnect after her wrap-up
-    }
-  }
-
-  // ── PTT ──────────────────────────────────────────────────────────────────
+  // ── PTT ────────────────────────────────────────────────────────────────────
   function setPTT(enabled) {
     pttMode = enabled;
-    document.getElementById('pttOpen').className = 'ptt-option' + (enabled ? '' : ' selected');
-    document.getElementById('pttPush').className = 'ptt-option' + (enabled ? ' selected' : '');
-    pttHoldBtn.style.display = enabled ? 'flex' : 'none';
-
-    if (localStream) {
-      localStream.getAudioTracks().forEach(t => { t.enabled = !enabled; });
-    }
+    document.getElementById('pttOpen').className = 'ptt-opt' + (!enabled ? ' on' : '');
+    document.getElementById('pttPush').className = 'ptt-opt' + ( enabled ? ' on' : '');
+    pttHoldBtn.className = 'btn-ptt' + (enabled ? ' show' : '');
+    if (localStream) localStream.getAudioTracks().forEach(t => { t.enabled = !enabled; });
   }
 
   function pttUnmute(e) {
@@ -792,200 +655,155 @@
     pttHoldBtn.classList.remove('pressed');
   }
 
-  // ── Event handler ─────────────────────────────────────────────────────────
+  // ── Event handler ──────────────────────────────────────────────────────────
   function handleEvent(evt) {
-    if (!evt || !evt.type) return;
-
+    if (!evt?.type) return;
     switch (evt.type) {
+
       case 'response.audio_transcript.delta':
-        if (evt.delta) {
-          setOrb('speaking');
-          setStatus('Luna is speaking\u2026', 'speaking');
-          updateLunaBubble(evt.delta);
-        }
+        if (evt.delta) { setStatus('Luna is speaking…', 'speaking'); onDelta(evt.delta); }
         break;
 
       case 'response.audio_transcript.done':
-        flushLunaBubble();
-        setOrb('active');
-        setStatus(pttMode ? 'Hold button to speak' : 'Listening\u2026', 'active');
+        onDone();
+        setStatus(pttMode ? 'Hold button to speak' : 'Listening…', 'listening');
         break;
 
       case 'response.done':
-        setOrb('active');
-        setStatus(pttMode ? 'Hold button to speak' : 'Listening\u2026', 'active');
-        if (pendingGoodbye) {
-          pendingGoodbye = false;
-          setTimeout(() => endSession(), 2000);
-        }
+        setStatus(pttMode ? 'Hold button to speak' : 'Listening…', 'listening');
+        if (pendingGoodbye) { pendingGoodbye = false; setTimeout(endSession, 2000); }
         break;
 
       case 'conversation.item.input_audio_transcription.completed': {
         const text = evt.transcript?.trim();
         if (text) {
-          addBubble('user', text);
+          addUserTurn(text);
           sessionTranscript.push({ role: 'user', text });
-          const lower = text.toLowerCase();
-          if (GOODBYE_PHRASES.some(p => lower.includes(p))) {
-            pendingGoodbye = true;
-          }
-          if (checkForConfusion(text)) {
-            handleConfusion();
+          if (GOODBYE.some(p => text.toLowerCase().includes(p))) pendingGoodbye = true;
+          if (CONFUSION.some(s => text.toLowerCase().includes(s))) {
+            if (dc?.readyState === 'open') {
+              dc.send(JSON.stringify({ type: 'conversation.item.create', item: {
+                type: 'message', role: 'system',
+                content: [{ type: 'input_text', text: "He didn't follow. Rephrase in plain English, naturally. Keep going." }],
+              }}));
+            }
           }
         }
         break;
       }
 
       case 'input_audio_buffer.speech_started':
-        setStatus('Listening\u2026', 'active');
-        setOrb('active');
-        break;
+        setStatus('Listening…', 'listening'); break;
 
       case 'input_audio_buffer.speech_stopped':
-        setStatus('Processing\u2026', 'active');
-        break;
+        setStatus('Processing…', 'listening'); break;
 
       case 'error':
         console.error('Realtime error:', evt);
-        setStatus('Error: ' + (evt.error?.message || 'unknown'), 'error');
+        setStatus(evt.error?.message || 'Error', '');
         break;
     }
   }
 
-  // ── Session start ─────────────────────────────────────────────────────────
+  // ── Session start ──────────────────────────────────────────────────────────
   async function startSession() {
     state = 'loading';
     setBtn('loading');
-    setStatus('Connecting to Luna\u2026');
-    pendingGoodbye = false;
-    costCapTriggered = false;
+    setStatus('Connecting…', '');
+    pendingGoodbye = false; costCapTriggered = false;
     sessionTranscript = [];
+    historyEl.innerHTML = '';
+    liveTextEl.innerHTML = '';
 
     try {
-      const sessionRes = await fetch('/session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({}),
+      const sr = await fetch('/session', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
       });
+      if (!sr.ok) throw new Error((await sr.json().catch(()=>({}))).error || 'Server error');
+      const sd = await sr.json();
+      const key = sd.value;
+      sessionModel = sd.model || 'gpt-realtime-mini';
+      if (!key) throw new Error('No ephemeral key');
 
-      if (!sessionRes.ok) {
-        const err = await sessionRes.json().catch(() => ({ error: 'Server error' }));
-        throw new Error(err.error || 'Failed to create session');
-      }
-
-      const sessionData = await sessionRes.json();
-      const ephemeralKey = sessionData.value;
-      sessionModel = sessionData.model || 'gpt-realtime-mini';
-      if (!ephemeralKey) throw new Error('No ephemeral key in session response');
-
-      // Mic
       localStream = await navigator.mediaDevices.getUserMedia({
         audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       });
 
-      // WebRTC
       pc = new RTCPeerConnection();
-      pc.ontrack = (e) => { remoteAudio.srcObject = e.streams[0]; };
+      pc.ontrack = e => { remoteAudio.srcObject = e.streams[0]; };
       localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
-
-      // Data channel
       dc = pc.createDataChannel('oai-events');
 
       dc.onopen = () => {
         state = 'connected';
         setBtn('connected');
-        setOrb('active');
-        setStatus('Listening\u2026', 'active');
+        setStatus('Listening…', 'listening');
         startTimer();
-        pttPill.style.display = 'flex';
+        pttPill.classList.add('show');
 
-        // Apply VAD + transcription settings
-        dc.send(JSON.stringify({
-          type: 'session.update',
-          session: {
-            turn_detection: { type: 'server_vad', threshold: 0.8, prefix_padding_ms: 300, silence_duration_ms: 1200 },
-            input_audio_transcription: { model: 'whisper-1' },
-          },
-        }));
+        dc.send(JSON.stringify({ type: 'session.update', session: {
+          turn_detection: { type: 'server_vad', threshold: 0.8, prefix_padding_ms: 300, silence_duration_ms: 1200 },
+          input_audio_transcription: { model: 'whisper-1' },
+        }}));
 
-        // Trigger Luna's greeting
         setTimeout(() => {
-          dc.send(JSON.stringify({ type: 'response.create', response: { modalities: ['text', 'audio'] } }));
+          dc.send(JSON.stringify({ type: 'response.create', response: { modalities: ['text','audio'] } }));
         }, 350);
-
       };
 
-      dc.onmessage = (e) => {
-        try { handleEvent(JSON.parse(e.data)); } catch (err) {}
-      };
-      dc.onerror = (e) => console.error('DC error:', e);
+      dc.onmessage = e => { try { handleEvent(JSON.parse(e.data)); } catch {} };
+      dc.onerror = e => console.error('DC error:', e);
 
-      // SDP exchange
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
 
-      const sdpRes = await fetch(
+      const sdpR = await fetch(
         `https://api.openai.com/v1/realtime/calls?model=${encodeURIComponent(sessionModel)}`,
-        {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${ephemeralKey}`, 'Content-Type': 'application/sdp' },
-          body: offer.sdp,
-        }
+        { method: 'POST', headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/sdp' }, body: offer.sdp }
       );
-      if (!sdpRes.ok) throw new Error('SDP exchange failed: ' + await sdpRes.text());
-      await pc.setRemoteDescription({ type: 'answer', sdp: await sdpRes.text() });
-
-      setStatus('Connected \u2014 fala comigo!', 'active');
+      if (!sdpR.ok) throw new Error('SDP failed: ' + await sdpR.text());
+      await pc.setRemoteDescription({ type: 'answer', sdp: await sdpR.text() });
 
     } catch (err) {
       console.error('Start failed:', err);
-      setStatus(err.message, 'error');
-      setOrb(''); setBtn('idle'); state = 'idle';
-      stopTimer();
-      cleanup();
+      setStatus(err.message, '');
+      setBtn('idle'); state = 'idle';
+      stopTimer(); cleanup();
     }
   }
 
-  // ── Session end ───────────────────────────────────────────────────────────
+  // ── Session end ────────────────────────────────────────────────────────────
   function endSession() {
     if (state === 'idle') return;
-
     const transcript = [...sessionTranscript];
     const duration_seconds = sessionStartTime ? Math.round((Date.now() - sessionStartTime) / 1000) : 0;
 
     state = 'idle';
     stopTimer();
-    cleanup();
     setBtn('idle');
-    setOrb('');
-    setStatus('Tap to start talking with Luna');
-    pttPill.style.display = 'none';
-    pttHoldBtn.style.display = 'none';
-    if (pttMode) setPTT(false); // reset toggle
+    setStatus('Tap to start talking with Luna', '');
+    pttPill.classList.remove('show');
+    pttHoldBtn.className = 'btn-ptt';
+    if (pttMode) setPTT(false);
 
-    // Fire-and-forget — save session to Supabase
-    if (transcript.length > 0) {
+    if (transcript.length) {
       fetch('/session/end', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ transcript, duration_seconds }),
-      }).catch(err => console.warn('Session save failed (non-critical):', err.message));
+      }).catch(e => console.warn('Save failed:', e.message));
     }
 
-    sessionTranscript = [];
-    sessionStartTime = null;
-    pendingGoodbye = false;
-    costCapTriggered = false;
+    sessionTranscript = []; sessionStartTime = null;
+    pendingGoodbye = false; costCapTriggered = false;
+    cleanup();
   }
 
   function cleanup() {
-    if (reinforceInterval) { clearInterval(reinforceInterval); reinforceInterval = null; }
-    if (dc) { try { dc.close(); } catch (e) {} dc = null; }
-    if (pc) { try { pc.close(); } catch (e) {} pc = null; }
+    if (dc)          { try { dc.close(); }           catch {} dc = null; }
+    if (pc)          { try { pc.close(); }           catch {} pc = null; }
     if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
     remoteAudio.srcObject = null;
-    lunaBuffer = ''; lunaBubble = null;
-    wordBuffer = ''; wordsWrap = null; liveWordEl = null;
+    lunaBuffer = ''; wordBuffer = ''; liveWordEl = null;
     if (activePopup) { activePopup.remove(); activePopup = null; }
   }
 
