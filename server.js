@@ -2,7 +2,6 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
-const { Pool } = require('pg');
 
 const app = express();
 app.use(cors());
@@ -25,7 +24,7 @@ const DEFAULT_PROFILE = {
   comprehension_score: 10,
   production_score: 5,
   accuracy_score: 50,
-  profile_summary: null,
+  goals: null,
 };
 
 // ── Prompt builders ────────────────────────────────────────────────────────
@@ -80,16 +79,16 @@ app.post('/session', async (req, res) => {
     // Single profile fetch — the one source of truth
     const { data: profileData, error: profileErr } = await supabase
       .from('user_profile')
-      .select('name, location, interests, personality_notes, total_sessions, comprehension_score, production_score, accuracy_score, gender, profile_summary')
+      .select('name, location, interests, personality_notes, total_sessions, comprehension_score, production_score, accuracy_score, gender, goals')
       .eq('user_id', 'default_user')
       .single();
 
     if (profileErr) console.error('Profile fetch error:', profileErr.message);
     const profile = profileData || DEFAULT_PROFILE;
 
-    // Pre-session memory generation — convert profile_summary into natural Luna voice
+    // Pre-session memory generation — convert goals into natural Luna voice
     let lunaMemory = null;
-    if (profile.profile_summary) {
+    if (profile.goals) {
       try {
         const memRes = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
@@ -106,16 +105,16 @@ app.post('/session', async (req, res) => {
                 role: 'system',
                 content: 'Write a short paragraph (80 words max) in first person as Luna, a Brazilian woman from Rio catching up with a friend she talks to regularly. Natural, warm, specific — like a friend remembering, not a report. Use the notes provided.',
               },
-              { role: 'user', content: profile.profile_summary },
+              { role: 'user', content: profile.goals },
             ],
           }),
         });
         const memData = await memRes.json();
-        lunaMemory = memData.choices?.[0]?.message?.content?.trim() || profile.profile_summary;
+        lunaMemory = memData.choices?.[0]?.message?.content?.trim() || profile.goals;
         console.log(`Memory generated for ${profile.name}: ${lunaMemory.slice(0, 80)}...`);
       } catch (err) {
-        lunaMemory = profile.profile_summary;
-        console.log('Memory gen failed, using raw profile_summary:', err.message);
+        lunaMemory = profile.goals;
+        console.log('Memory gen failed, using raw goals:', err.message);
       }
     }
 
@@ -172,7 +171,7 @@ app.post('/session/end', async (req, res) => {
 async function analyzeAndSave(transcript, duration_seconds) {
   const { data: profile, error: profileErr } = await supabase
     .from('user_profile')
-    .select('comprehension_score, production_score, accuracy_score, total_sessions, total_minutes, profile_summary')
+    .select('comprehension_score, production_score, accuracy_score, total_sessions, total_minutes, goals')
     .eq('user_id', 'default_user')
     .single();
 
@@ -204,7 +203,7 @@ async function analyzeAndSave(transcript, duration_seconds) {
         {
           role: 'user',
           content: `Current scores — Comprehension: ${profile.comprehension_score}/100, Production: ${profile.production_score}/100, Accuracy: ${profile.accuracy_score}/100
-Existing profile notes: ${profile.profile_summary || 'none yet'}
+Existing profile notes: ${profile.goals || 'none yet'}
 
 Transcript:
 ${transcriptText}
@@ -218,7 +217,7 @@ Return this exact JSON:
   "comprehension_delta": <float -5 to +5>,
   "production_delta": <float -5 to +5>,
   "accuracy_delta": <float -5 to +5>,
-  "profile_summary": "<Updated 2-3 sentence factual notes about Shay — his life in Rio, what he mentioned, how he's doing with Portuguese, anything worth remembering for next time. Rolling update — incorporate existing notes + what's new from this session.>"
+  "goals": "<Updated 2-3 sentence factual notes about Shay — his life in Rio, what he mentioned, how he's doing with Portuguese, anything worth remembering for next time. Rolling update — incorporate existing notes + what's new from this session.>"
 }
 
 Rules: mistakes max 5 (grammar only, not pronunciation). new_words max 8 (only words Shay actively engaged with). Conservative deltas — normal session +1 to +2.`,
@@ -243,7 +242,7 @@ Rules: mistakes max 5 (grammar only, not pronunciation). new_words max 8 (only w
   const newPortugueseRatio = Math.max(15, Math.min(90, Math.round((newComp + newProd) / 2)));
   const newEnglishRatio = 100 - newPortugueseRatio;
 
-  // Update user profile (includes new profile_summary)
+  // Update user profile (includes new goals)
   const { error: profileUpdateErr } = await supabase.from('user_profile').update({
     comprehension_score: newComp,
     production_score: newProd,
@@ -252,7 +251,7 @@ Rules: mistakes max 5 (grammar only, not pronunciation). new_words max 8 (only w
     current_portuguese_ratio: newPortugueseRatio,
     total_sessions: profile.total_sessions + 1,
     total_minutes: (profile.total_minutes || 0) + Math.round(duration_seconds / 60),
-    profile_summary: analysis.profile_summary || profile.profile_summary,
+    goals: analysis.goals || profile.goals,
     updated_at: new Date().toISOString(),
   }).eq('user_id', 'default_user');
 
@@ -270,7 +269,7 @@ Rules: mistakes max 5 (grammar only, not pronunciation). new_words max 8 (only w
     new_words_introduced: analysis.new_words_introduced || [],
     corrections_made: (analysis.mistakes || []).length,
     user_mood: analysis.user_mood || 'neutral',
-    session_summary: analysis.profile_summary || '',
+    session_summary: analysis.goals || '',
     transcript,
   });
 
@@ -310,7 +309,7 @@ Rules: mistakes max 5 (grammar only, not pronunciation). new_words max 8 (only w
     }
   }
 
-  console.log(`Session saved — C:${newComp.toFixed(1)} P:${newProd.toFixed(1)} A:${newAcc.toFixed(1)} | memory updated: ${!!analysis.profile_summary}`);
+  console.log(`Session saved — C:${newComp.toFixed(1)} P:${newProd.toFixed(1)} A:${newAcc.toFixed(1)} | memory updated: ${!!analysis.goals}`);
 }
 
 // ── POST /translate ────────────────────────────────────────────────────────
@@ -351,15 +350,15 @@ app.post('/translate', async (req, res) => {
 // ── GET /health ────────────────────────────────────────────────────────────
 app.get('/health', async (req, res) => {
   const [profileRes, sessionRes, vocabRes] = await Promise.all([
-    supabase.from('user_profile').select('name, total_sessions, comprehension_score, production_score, profile_summary').eq('user_id', 'default_user').single(),
+    supabase.from('user_profile').select('name, total_sessions, comprehension_score, production_score, goals').eq('user_id', 'default_user').single(),
     supabase.from('session_log').select('started_at, session_summary').eq('user_id', 'default_user').order('started_at', { ascending: false }).limit(3),
     supabase.from('vocabulary').select('word, mastery_score').eq('user_id', 'default_user').limit(10),
   ]);
   res.json({
     profile: profileRes.data,
     profile_error: profileRes.error?.message || null,
-    has_memory: !!profileRes.data?.profile_summary,
-    memory_preview: profileRes.data?.profile_summary?.slice(0, 120) || null,
+    has_memory: !!profileRes.data?.goals,
+    memory_preview: profileRes.data?.goals?.slice(0, 120) || null,
     recent_sessions: sessionRes.data?.length || 0,
     session_error: sessionRes.error?.message || null,
     vocab_count: vocabRes.data?.length || 0,
@@ -379,29 +378,7 @@ app.get('/profile', async (req, res) => {
   res.json(data);
 });
 
-// ── Migrations ────────────────────────────────────────────────────────────
-async function runMigrations() {
-  const dbUrl = process.env.DATABASE_URL;
-  if (!dbUrl) {
-    console.log('DATABASE_URL not set — skipping auto-migration (run SQL manually if needed)');
-    return;
-  }
-  const pool = new Pool({ connectionString: dbUrl, ssl: { rejectUnauthorized: false } });
-  try {
-    await pool.query(`
-      ALTER TABLE user_profile ADD COLUMN IF NOT EXISTS profile_summary TEXT;
-    `);
-    console.log('Migration OK: profile_summary column ready');
-  } catch (err) {
-    console.error('Migration failed (non-fatal):', err.message);
-  } finally {
-    await pool.end();
-  }
-}
-
 const PORT = process.env.PORT || 3000;
-runMigrations().then(() => {
-  app.listen(PORT, () => {
-    console.log(`Luna is listening on port ${PORT}`);
-  });
+app.listen(PORT, () => {
+  console.log(`Luna is listening on port ${PORT}`);
 });
