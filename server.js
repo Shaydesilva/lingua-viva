@@ -312,6 +312,41 @@ Rules: mistakes max 5 (grammar only, not pronunciation). new_words max 8 (only w
   console.log(`Session saved — C:${newComp.toFixed(1)} P:${newProd.toFixed(1)} A:${newAcc.toFixed(1)} | memory updated: ${!!analysis.profile_summary}`);
 }
 
+// ── POST /translate ────────────────────────────────────────────────────────
+app.post('/translate', async (req, res) => {
+  const { word } = req.body || {};
+  if (!word) return res.json({ translation: '—', language: 'unknown' });
+
+  try {
+    const r = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        max_tokens: 40,
+        temperature: 0,
+        response_format: { type: 'json_object' },
+        messages: [
+          {
+            role: 'system',
+            content: 'Return JSON only: { "language": "pt" or "en", "translation": "concise translation or definition", "note": "optional usage note in 5 words max" }. If the word is Portuguese, give the English meaning. If English, give a brief definition. Be concise.',
+          },
+          { role: 'user', content: word },
+        ],
+      }),
+    });
+    const data = await r.json();
+    const result = JSON.parse(data.choices[0].message.content);
+    res.json(result);
+  } catch (err) {
+    console.error('Translate error:', err.message);
+    res.json({ translation: '—', language: 'unknown' });
+  }
+});
+
 // ── GET /health ────────────────────────────────────────────────────────────
 app.get('/health', async (req, res) => {
   const [profileRes, sessionRes, vocabRes] = await Promise.all([

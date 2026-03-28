@@ -337,6 +337,130 @@
     .transcript::-webkit-scrollbar { width: 3px; }
     .transcript::-webkit-scrollbar-track { background: transparent; }
     .transcript::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* ── Word-by-word display ── */
+    .words-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 0;
+      line-height: 1.75;
+    }
+
+    .word {
+      display: inline;
+      cursor: pointer;
+      border-radius: 3px;
+      padding: 1px 1px;
+      margin: 0 1px;
+      transition: background 0.12s, color 0.12s;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    .word:hover, .word:active {
+      background: rgba(255, 107, 74, 0.18);
+      color: #ffb38a;
+    }
+
+    .word-pt {
+      text-decoration: underline;
+      text-decoration-color: rgba(255, 107, 74, 0.5);
+      text-decoration-thickness: 1.5px;
+      text-underline-offset: 3px;
+    }
+
+    .word-live {
+      color: rgba(252, 211, 77, 0.45);
+      cursor: default;
+      pointer-events: none;
+      padding: 1px 1px;
+      margin: 0 1px;
+    }
+
+    @keyframes wordIn {
+      from { opacity: 0; transform: translateY(3px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .word-in {
+      animation: wordIn 0.14s ease forwards;
+    }
+
+    /* ── Translation popup ── */
+    .translate-popup {
+      position: fixed;
+      z-index: 999;
+      min-width: 140px;
+      max-width: 210px;
+      background: rgba(14, 14, 14, 0.96);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 107, 74, 0.35);
+      border-radius: 12px;
+      padding: 10px 14px 11px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.55);
+      pointer-events: none;
+      animation: popIn 0.15s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+
+    @keyframes popIn {
+      from { opacity: 0; transform: scale(0.92) translateY(6px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .tp-word {
+      font-size: 15px;
+      font-weight: 600;
+      color: #FF8C42;
+      letter-spacing: 0.01em;
+      margin-bottom: 5px;
+    }
+
+    .tp-meta {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .tp-badge {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      background: rgba(255, 107, 74, 0.15);
+      color: #FF8C42;
+      padding: 2px 7px;
+      border-radius: 20px;
+      flex-shrink: 0;
+    }
+
+    .tp-translation {
+      font-size: 13px;
+      color: #F0F0F0;
+      line-height: 1.4;
+    }
+
+    .tp-note {
+      display: block;
+      font-size: 11px;
+      color: #666;
+      margin-top: 4px;
+      line-height: 1.35;
+    }
+
+    .tp-spinner {
+      display: inline-block;
+      width: 13px;
+      height: 13px;
+      border: 1.5px solid rgba(255,107,74,0.25);
+      border-top-color: #FF6B4A;
+      border-radius: 50%;
+      animation: spin 0.65s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
   </style>
 </head>
 <body>
@@ -397,10 +521,27 @@
   let sessionModel = 'gpt-realtime-mini';
   let state = 'idle'; // idle | loading | connected
   let lunaBuffer = '', lunaBubble = null;
+  let wordBuffer = '', wordsWrap = null, liveWordEl = null;
   let sessionTranscript = [];
   let sessionStartTime = null;
   let timerInterval = null;
   let reinforceInterval = null;
+  let translationCache = {};
+  let activePopup = null;
+
+  const PT_CHARS = /[ãõâêîôûçáéíóúàü]/i;
+  const COMMON_PT = new Set([
+    'tá','né','tô','cê','num','cara','gente','aqui','assim','então','tipo',
+    'nossa','oi','tchau','obrigado','obrigada','legal','saudade','carioca',
+    'boteco','praia','favela','né','rapaz','poxa','caramba','mano','véi',
+    'ótimo','beleza','valeu','falou','tudo','bem','bom','boa','muito',
+    'mais','mas','que','para','por','com','uma','isso','não','sim',
+  ]);
+
+  function isPt(word) {
+    const w = word.toLowerCase().replace(/[.,!?;:'"«»()]/g, '');
+    return PT_CHARS.test(w) || COMMON_PT.has(w);
+  }
 
   const CONFUSION_SIGNALS = [
     "i don't understand", "i don't get it",
@@ -486,20 +627,101 @@
     if (!lunaBubble) {
       lunaBubble = document.createElement('div');
       lunaBubble.className = 'bubble luna';
-      lunaBubble.innerHTML = '<div class="speaker">Luna</div><span class="text"></span>';
+      lunaBubble.innerHTML = '<div class="speaker">Luna</div><div class="words-wrap"></div>';
       transcriptEl.appendChild(lunaBubble);
+      wordsWrap = lunaBubble.querySelector('.words-wrap');
     }
-    lunaBubble.querySelector('.text').textContent = lunaBuffer;
+    for (const ch of delta) {
+      if (ch === ' ' || ch === '\n') {
+        if (wordBuffer) { commitWord(wordBuffer); wordBuffer = ''; }
+        if (liveWordEl) { liveWordEl.remove(); liveWordEl = null; }
+        const sp = document.createElement('span');
+        sp.textContent = ' ';
+        sp.style.userSelect = 'none';
+        wordsWrap.appendChild(sp);
+      } else {
+        wordBuffer += ch;
+        if (!liveWordEl) {
+          liveWordEl = document.createElement('span');
+          liveWordEl.className = 'word-live';
+          wordsWrap.appendChild(liveWordEl);
+        }
+        liveWordEl.textContent = wordBuffer;
+      }
+    }
     transcriptEl.scrollTop = transcriptEl.scrollHeight;
   }
 
+  function commitWord(raw) {
+    if (liveWordEl) { liveWordEl.remove(); liveWordEl = null; }
+    const clean = raw.replace(/^["""'«(]+|[.,!?;:"""'»)]+$/g, '');
+    const span = document.createElement('span');
+    span.className = 'word word-in' + (clean && isPt(clean) ? ' word-pt' : '');
+    span.textContent = raw;
+    if (clean) {
+      span.dataset.word = clean;
+      span.addEventListener('click', e => { e.stopPropagation(); showTranslation(clean, span); });
+    }
+    wordsWrap.appendChild(span);
+  }
+
   function flushLunaBubble() {
+    if (wordBuffer) { commitWord(wordBuffer); wordBuffer = ''; }
+    if (liveWordEl) { liveWordEl.remove(); liveWordEl = null; }
     if (lunaBuffer.trim()) {
       sessionTranscript.push({ role: 'assistant', text: lunaBuffer.trim() });
     }
-    lunaBubble = null;
-    lunaBuffer = '';
+    lunaBubble = null; wordsWrap = null; lunaBuffer = '';
   }
+
+  // ── Translation popup ────────────────────────────────────────────────────
+  async function showTranslation(word, anchor) {
+    if (activePopup) { activePopup.remove(); activePopup = null; }
+
+    const popup = document.createElement('div');
+    popup.className = 'translate-popup';
+    popup.innerHTML = `<div class="tp-word">${word}</div><div class="tp-meta"><span class="tp-spinner"></span></div>`;
+    document.body.appendChild(popup);
+    activePopup = popup;
+    positionPopup(popup, anchor);
+
+    const key = word.toLowerCase();
+    if (!translationCache[key]) {
+      try {
+        const r = await fetch('/translate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ word }),
+        });
+        translationCache[key] = await r.json();
+      } catch {
+        translationCache[key] = { translation: '—', language: 'unknown' };
+      }
+    }
+
+    if (popup !== activePopup) return;
+    const d = translationCache[key];
+    popup.querySelector('.tp-meta').innerHTML =
+      (d.language === 'pt' ? '<span class="tp-badge">PT</span>' : '') +
+      `<span class="tp-translation">${d.translation || '—'}</span>` +
+      (d.note ? `<span class="tp-note">${d.note}</span>` : '');
+
+    setTimeout(() => { if (popup === activePopup) { popup.remove(); activePopup = null; } }, 4500);
+  }
+
+  function positionPopup(popup, anchor) {
+    const r = anchor.getBoundingClientRect();
+    const W = 200, gap = 10;
+    let top = r.top - 85 - gap;
+    if (top < 10) top = r.bottom + gap;
+    let left = r.left + r.width / 2 - W / 2;
+    left = Math.max(8, Math.min(left, window.innerWidth - W - 8));
+    Object.assign(popup.style, { top: top + 'px', left: left + 'px', width: W + 'px' });
+  }
+
+  document.addEventListener('click', () => {
+    if (activePopup) { activePopup.remove(); activePopup = null; }
+  });
 
   // ── Timer ────────────────────────────────────────────────────────────────
   function startTimer() {
@@ -763,6 +985,8 @@
     if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
     remoteAudio.srcObject = null;
     lunaBuffer = ''; lunaBubble = null;
+    wordBuffer = ''; wordsWrap = null; liveWordEl = null;
+    if (activePopup) { activePopup.remove(); activePopup = null; }
   }
 
   function handleButton() {
