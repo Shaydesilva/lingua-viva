@@ -5,206 +5,193 @@ const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '5mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY
-);
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
 
 const DEFAULT_PROFILE = {
-  name: 'Shay',
-  location: 'Rio de Janeiro, Brazil',
-  interests: ['trading', 'AI automation', 'Brazilian culture', 'surfing', 'nightlife', 'coffee'],
-  gender: 'male',
-  personality_notes: [],
-  total_sessions: 0,
-  comprehension_score: 10,
-  production_score: 5,
-  accuracy_score: 50,
-  goals: null,
+  name: 'Shay', location: 'Rio de Janeiro, Brazil',
+  interests: ['trading','AI automation','Brazilian culture','surfing','nightlife','coffee'],
+  gender: 'male', personality_notes: [], total_sessions: 0,
+  comprehension_score: 10, production_score: 5, accuracy_score: 50,
+  goals: null, current_phase: 1, current_phase_name: 'Survival', words_known: 0,
 };
+
+// ── GPT helper ─────────────────────────────────────────────────────────────
+
+async function gpt(system, user, json = false) {
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini', max_tokens: 800, temperature: 0.3,
+      ...(json ? { response_format: { type: 'json_object' } } : {}),
+      messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
+    }),
+  });
+  const data = await res.json();
+  const text = data.choices?.[0]?.message?.content?.trim();
+  return json ? JSON.parse(text) : text;
+}
 
 // ── Language behavior by level ─────────────────────────────────────────────
 
-function getLanguageBehavior(comprehension) {
-  if (comprehension < 30) {
-    return `BEGINNER RULES — follow these exactly:
-- Every sentence you speak is in English.
-- You may drop in 1-2 Portuguese words per response. Never more.
-- ALWAYS translate the Portuguese word immediately in the same breath: "That's called um boteco — basically a little bar."
-- NEVER say a full sentence in Portuguese.
-- NEVER ask him to repeat anything. NEVER say "try saying" or "can you say."
-- If he sounds confused by ANYTHING, immediately rephrase everything in plain English.
-- When he asks how to say something, give him the SHORTEST version a carioca would actually use. "Tô com fome" not "Eu estou com fome." Always the 3-word version over the 8-word version.`;
-  } else if (comprehension < 50) {
-    return `EARLY INTERMEDIATE RULES:
-- Mostly English, but use Portuguese phrases he's heard before without translating them.
-- Introduce 3-5 new Portuguese words per session, always with English context.
-- Short Portuguese phrases are fine for greetings, reactions, and familiar topics.
-- Still give the street version, not the textbook version. Always shortest form.`;
-  } else if (comprehension < 70) {
-    return `INTERMEDIATE RULES:
-- Mix English and Portuguese freely. Lead in English, let Portuguese flow in.
-- Stop translating words he's mastered. Just use them.
-- Full Portuguese sentences are fine for topics he knows well.
-- If he seems lost, switch back to English immediately.`;
-  } else {
-    return `ADVANCED RULES:
-- Default to Portuguese. English only for genuinely complex new concepts.
-- Push him to respond in Portuguese. Full carioca speed and slang.
-- If he responds in English to a Portuguese question, nudge him to try in Portuguese.`;
-  }
+function getLanguageBehavior(comp) {
+  if (comp < 30) return `BEGINNER — speak English. Drop 1-2 Portuguese words per response max. Always translate immediately in the same breath. Never full Portuguese sentences. Never ask to repeat.`;
+  if (comp < 50) return `EARLY INTERMEDIATE — mostly English. Use Portuguese phrases he's heard before without translating. Introduce 3-5 new words per session with context.`;
+  if (comp < 70) return `INTERMEDIATE — mix freely. Stop translating mastered words. Full Portuguese sentences fine for familiar topics. Drop to English if he's lost.`;
+  return `ADVANCED — lead in Portuguese. English only for complex new concepts. Push him to respond in Portuguese.`;
+}
+
+function getProductionBehavior(comp, prod) {
+  if (comp < 35) return '';
+  if (prod < 20) return `\nHis comprehension is ${comp} but production is only ${prod}. Occasionally create small openings for him to try Portuguese — "how would you say that?" If he can't, give it immediately. Never make it feel like a test.`;
+  return `\nHe's starting to produce Portuguese. Encourage it. When he uses Portuguese correctly, keep the conversation flowing (that's the best confirmation). When he's wrong, briefly model the right way.`;
 }
 
 // ── System prompt builder ──────────────────────────────────────────────────
 
-function buildSystemPrompt(profile, lunaMemory) {
-  const interests = Array.isArray(profile.interests)
-    ? profile.interests.join(', ')
-    : profile.interests || '';
-
+function buildSystemPrompt(profile, memory, learnerModel, plan, targetWords, reviewWords) {
+  const interests = Array.isArray(profile.interests) ? profile.interests.join(', ') : profile.interests || '';
   const langRules = getLanguageBehavior(profile.comprehension_score);
+  const prodRules = getProductionBehavior(profile.comprehension_score, profile.production_score);
 
-  const memoryBlock = lunaMemory
-    ? `## What you know about ${profile.name}\n${lunaMemory}\nUse this naturally. Don't announce that you remember things — just reference them like a friend would.`
-    : `This is your first conversation. Get to know him — ask about his life in Rio, why he's learning Portuguese, what his days look like. Keep it casual.`;
+  const memBlock = memory
+    ? `## What You Know About Him\n${memory}\nReference things naturally. Don't announce you remember.`
+    : `First conversation. Get to know him — life in Rio, why he's learning, what his days look like.`;
+
+  const modelBlock = learnerModel?.narrative && learnerModel.narrative !== 'New learner. No patterns observed yet.'
+    ? `## How He Learns (private notes)\n${learnerModel.narrative}` : '';
+
+  const planBlock = plan
+    ? `## Today's Approach\n${plan.plan_text}\nOpening idea: ${plan.opening_suggestion || 'Ask about his day'}\nMood: ${plan.mood_approach || 'light and casual'}`
+    : '';
+
+  const targetBlock = targetWords.length
+    ? `## New Words to Introduce\nWork these in naturally if conversation allows (always with English translation):\n${targetWords.map(w => `- ${w.word} (${w.translation}) — e.g. "${w.example_usage}"`).join('\n')}`
+    : '';
+
+  const reviewBlock = reviewWords.length
+    ? `## Review Words\nHe's seen these before. Use them without translating unless he seems confused:\n${reviewWords.map(w => `- ${w.word} (${w.translation})`).join('\n')}`
+    : '';
 
   return `## YOUR DEFAULT LANGUAGE IS ENGLISH
-You speak English with ${profile.name}. Portuguese words come up naturally because you're Brazilian and you live in Rio — a word here, a phrase there, always with the English meaning right next to it. You never switch into full Portuguese unless his level allows it.
+${langRules}${prodRules}
 
 ## Who You Are
-You're Luna, a Brazilian woman from Rio. You speak fluent English. You're warm, helpful, and straightforward. You're helping ${profile.name} pick up Portuguese through conversation — not lessons. Think of yourself as a local friend who helps him navigate Rio and picks up on his Portuguese along the way.
-
-You're not a teacher. You don't run drills. You don't give lectures. You just talk, and Portuguese happens naturally as part of that.
-
-${memoryBlock}
+Luna, Brazilian from Rio. Fluent English. Warm, helpful, straightforward. A local friend helping ${profile.name} pick up Portuguese through conversation. Not a teacher.
 
 ## About ${profile.name}
-- Lives in ${profile.location}
-- Interests: ${interests}
-- Gender: male — ALWAYS use masculine Portuguese forms. "Obrigado" never "obrigada". "Cansado" never "cansada". Every time.
-- Sessions together: ${profile.total_sessions}
-- Comprehension: ${profile.comprehension_score}/100
-- Production: ${profile.production_score}/100
+Lives in ${profile.location}. Interests: ${interests}.
+Gender: male — ALWAYS masculine forms. Obrigado, cansado, animado. Every time.
+Sessions: ${profile.total_sessions}. Words known: ${profile.words_known || 0}. Phase: ${profile.current_phase_name || 'Survival'}.
 
-## ${langRules}
+${memBlock}
+
+${modelBlock}
+
+${planBlock}
+
+${targetBlock}
+
+${reviewBlock}
 
 ## How Portuguese Comes Up
-- When a Portuguese word fits naturally, drop it in and translate it in the same sentence. Move on. Don't make it a moment.
-- ALWAYS give the simplest, most common street version. How a carioca actually talks, not how a textbook teaches.
-  - "Um café, por favor" NOT "Eu gostaria de um café, por favor"
-  - "Cadê o banheiro?" NOT "Com licença, onde fica o banheiro?"
-  - "Tô bem" NOT "Eu estou bem"
-  - "Tá" NOT "Está"
-  - Contractions and slang ARE the language. "Tô", "tá", "cadê", "pô", "beleza", "firmeza", "valeu", "é nóis"
-- If he asks how to say something, give the answer and keep moving. Don't turn it into a lesson.
-- If he tries Portuguese and it's understandable — even if imperfect — just respond to what he meant. Only correct if a Brazilian genuinely wouldn't understand him.
-- When you do correct, do it by modeling: just say it the right way in your response. Don't announce the correction.
+- Always give the SHORTEST street version. "Tô com fome" not "Eu estou com fome". "Cadê?" not "Onde fica?"
+- Contractions are the language: tô, tá, cadê, pô, cê
+- If he asks how to say something — answer and move on. Not a lesson.
+- If he tries Portuguese and it's understandable — respond to the meaning. Only correct if a Brazilian wouldn't understand.
+- When correcting: briefly make it visible — "oh, tô com fome, not sou — tá is for how you feel right now. Anyway..." Two seconds, move on.
 
-## Personality & Tone
-- Warm, direct, a bit of humor. Not bubbly, not flat — just real.
-- React naturally — "nossa", "sério?", "que legal" — but vary it. Don't repeat the same reactions.
-- Have opinions about Rio — food spots, neighborhoods, things to do. Be useful.
-- Keep responses to 1-3 sentences. Short and natural. This is voice, not text.
+## Personality
+Warm, direct, bit of humor. React naturally but vary it. Have opinions about Rio. Keep to 1-3 sentences. Speak at a relaxed pace.
 
-## Pacing
-- Speak at a relaxed, conversational pace. Not slow, not fast. Like talking to a friend over coffee.
-- Leave tiny pauses between sentences. Don't rush.
-- When you say a Portuguese word, pronounce it clearly but don't slow way down dramatically. Just say it naturally.
-- NEVER say "I'll slow down for you" — you can't control your speed. Just keep sentences short.
+## NEVER DO
+- "great job", "well done", "nice try", "almost", "excellent"
+- "repeat after me", "try saying", "can you say", "let's practice"
+- "in Portuguese we say" — just USE the word
+- Grammar lectures unless asked
+- Full Portuguese sentences at beginner level
+- More Portuguese when he's confused — drop to English
+- European Portuguese
+- Starting two responses the same way
+- Promising to slow down
 
-## NEVER DO — these are hard rules
-- Never say "great job", "well done", "excellent", "perfect", "nice try", "almost"
-- Never say "repeat after me", "try saying", "can you say", "let's practice", "one more time"
-- Never say "in Portuguese we say" or "the word for that is" — just USE the word naturally
-- Never give grammar explanations unless he explicitly asks
-- Never speak a full sentence in Portuguese if he's a beginner
-- Never respond to his confusion with more Portuguese — always drop to English
-- Never use formal or European Portuguese — you're carioca
-- Never start two responses the same way. Vary your openings.
-- Never promise to slow down or speed up — just talk naturally`;
+## REMINDER
+English is default. Portuguese is seasoning. Short responses. Be a friend.`;
 }
 
 // ── POST /session ──────────────────────────────────────────────────────────
 
 app.post('/session', async (req, res) => {
   const model = process.env.REALTIME_MODEL || 'gpt-realtime-mini';
+  let instructions, vocabMastery = {};
 
-  let instructions;
   try {
-    const { data: profileData, error: profileErr } = await supabase
-      .from('user_profile')
-      .select('name, location, interests, personality_notes, total_sessions, comprehension_score, production_score, accuracy_score, gender, goals')
-      .eq('user_id', 'default_user')
-      .single();
+    // Load all context in parallel
+    const [profileRes, modelRes, planRes, reviewRes, vocabRes] = await Promise.all([
+      supabase.from('user_profile').select('*').eq('user_id', 'default_user').single(),
+      supabase.from('learner_model').select('*').eq('user_id', 'default_user').single(),
+      supabase.from('session_plan').select('*').eq('user_id', 'default_user').eq('used', false).order('created_at', { ascending: false }).limit(1).single(),
+      supabase.from('vocabulary').select('word, translation, mastery_score').eq('user_id', 'default_user').lte('next_review_at', new Date().toISOString()).lt('mastery_score', 90).order('next_review_at').limit(8),
+      supabase.from('vocabulary').select('word, mastery_score').eq('user_id', 'default_user'),
+    ]);
 
-    if (profileErr) console.error('Profile fetch error:', profileErr.message);
-    const profile = profileData || DEFAULT_PROFILE;
+    const profile = profileRes.data || DEFAULT_PROFILE;
+    const learnerModel = modelRes.data || null;
+    const plan = planRes.data || null;
+    const reviewWords = reviewRes.data || [];
 
-    let lunaMemory = null;
+    // Build vocab mastery map for frontend context triggers
+    (vocabRes.data || []).forEach(v => { vocabMastery[v.word] = v.mastery_score; });
+
+    // Get curriculum words for current phase that aren't in vocabulary yet
+    const knownWords = new Set(Object.keys(vocabMastery));
+    const { data: currWords } = await supabase.from('curriculum')
+      .select('word, translation, example_usage')
+      .eq('phase', profile.current_phase || 1)
+      .order('sort_order').limit(30);
+    const targetWords = (currWords || []).filter(w => !knownWords.has(w.word)).slice(0, 3);
+
+    // Generate memory paragraph
+    let memory = null;
     if (profile.goals) {
       try {
-        const memRes = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'gpt-4o-mini',
-            max_tokens: 150,
-            temperature: 0.4,
-            messages: [
-              {
-                role: 'system',
-                content: `Turn these notes about a person into a short, natural first-person paragraph (100 words max). Write as if you're a friend recalling what you know about them. Mention specific details — names, places, things they said. Don't be generic. Don't start with "So" or "Last time."`,
-              },
-              { role: 'user', content: profile.goals },
-            ],
-          }),
-        });
-        const memData = await memRes.json();
-        lunaMemory = memData.choices?.[0]?.message?.content?.trim() || profile.goals;
-      } catch (err) {
-        lunaMemory = profile.goals;
-        console.log('Memory generation failed, using raw goals:', err.message);
-      }
+        memory = await gpt(
+          'Turn these notes into a short first-person paragraph (80 words max). Write as a friend recalling what you know. Specific details. Don\'t start with "So".',
+          profile.goals
+        );
+      } catch { memory = profile.goals; }
     }
 
-    instructions = buildSystemPrompt(profile, lunaMemory);
-    console.log(`Session ready — C:${profile.comprehension_score} P:${profile.production_score} sessions:${profile.total_sessions}`);
+    // Mark plan as used
+    if (plan?.id) {
+      await supabase.from('session_plan').update({ used: true }).eq('id', plan.id);
+    }
+
+    instructions = buildSystemPrompt(profile, memory, learnerModel, plan, targetWords, reviewWords);
+    console.log(`Session ready — C:${profile.comprehension_score} P:${profile.production_score} phase:${profile.current_phase_name} plan:${plan ? 'yes' : 'none'} review:${reviewWords.length} target:${targetWords.length}`);
   } catch (err) {
     console.error('Session build failed:', err.message);
-    instructions = buildSystemPrompt(DEFAULT_PROFILE, null);
+    instructions = buildSystemPrompt(DEFAULT_PROFILE, null, null, null, [], []);
   }
 
   try {
     const response = await fetch('https://api.openai.com/v1/realtime/client_secrets', {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        session: {
-          type: 'realtime',
-          model,
-          instructions,
-          audio: { output: { voice: 'marin' } },
-        },
+        session: { type: 'realtime', model, instructions, audio: { output: { voice: 'marin' } } },
       }),
     });
-
     if (!response.ok) {
-      const errText = await response.text();
-      console.error('OpenAI API error:', response.status, errText);
-      return res.status(response.status).json({ error: errText });
+      const err = await response.text();
+      console.error('OpenAI error:', response.status, err);
+      return res.status(response.status).json({ error: err });
     }
-
     const data = await response.json();
-    res.json({ ...data, model });
+    res.json({ ...data, model, vocabMastery });
   } catch (err) {
     console.error('Session creation failed:', err);
     res.status(500).json({ error: err.message });
@@ -216,92 +203,160 @@ app.post('/session', async (req, res) => {
 app.post('/session/end', async (req, res) => {
   const { duration_seconds, transcript } = req.body || {};
   if (!transcript?.length) return res.json({ ok: true });
-
   res.json({ ok: true });
-
-  analyzeAndSave(transcript, duration_seconds || 0).catch(err => {
-    console.error('Post-session analysis failed:', err.message);
-  });
+  processSession(transcript, duration_seconds || 0).catch(e => console.error('Post-session failed:', e.message));
 });
 
-async function analyzeAndSave(transcript, duration_seconds) {
-  const { data: profile, error: profileErr } = await supabase
-    .from('user_profile')
-    .select('comprehension_score, production_score, accuracy_score, total_sessions, total_minutes, goals')
-    .eq('user_id', 'default_user')
-    .single();
-
-  if (profileErr) console.error('analyzeAndSave: profile fetch failed:', profileErr.message);
+async function processSession(transcript, duration_seconds) {
+  const { data: profile } = await supabase.from('user_profile')
+    .select('comprehension_score, production_score, accuracy_score, total_sessions, total_minutes, goals, current_phase, words_known')
+    .eq('user_id', 'default_user').single();
   if (!profile) return;
 
-  const transcriptText = transcript
-    .map(t => `${t.role === 'assistant' ? 'Luna' : 'Shay'}: ${t.text}`)
-    .join('\n');
+  const transcriptText = transcript.map(t => `${t.role === 'assistant' ? 'Luna' : 'Shay'}: ${t.text}`).join('\n');
 
-  const gptRes = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      temperature: 0,
-      response_format: { type: 'json_object' },
-      messages: [
-        {
-          role: 'system',
-          content: 'Analyze this conversation between Shay (learning Portuguese) and Luna (Brazilian friend). Extract learning data. Return ONLY valid JSON.',
-        },
-        {
-          role: 'user',
-          content: `Current scores — Comprehension: ${profile.comprehension_score}/100, Production: ${profile.production_score}/100, Accuracy: ${profile.accuracy_score}/100
-Existing notes about Shay: ${profile.goals || 'none yet'}
+  // Step 1: Concrete analysis
+  const analysis = await gpt(
+    'Analyze this conversation. Return concrete data only, as JSON.',
+    `Current scores — Comprehension: ${profile.comprehension_score}, Production: ${profile.production_score}, Accuracy: ${profile.accuracy_score}
+Existing notes: ${profile.goals || 'none'}
 
 Transcript:
 ${transcriptText}
 
-Return this exact JSON:
+Return JSON:
 {
-  "topics_discussed": ["<topic>"],
-  "new_words_introduced": [{"word": "<pt word>", "translation": "<en meaning>"}],
-  "mistakes": [{"error": "<what Shay said>", "correction": "<correct form>", "note": "<brief why>"}],
-  "user_mood": "<energetic|neutral|tired|frustrated|confident>",
-  "comprehension_delta": <float -5 to +5>,
-  "production_delta": <float -5 to +5>,
-  "accuracy_delta": <float -5 to +5>,
-  "goals": "<Updated 2-3 sentence factual notes about Shay — his life, what he mentioned, how his Portuguese is progressing, anything to remember next time. Keep existing notes, add new info.>"
+  "comprehension_data": [{"word":"<pt word>","understood":true/false}],
+  "production_words": ["<pt words Shay used unprompted>"],
+  "accuracy_data": [{"attempt":"<what Shay said>","correct":true/false,"correction":"<if wrong>","note":"<brief>"}],
+  "new_vocabulary": [{"word":"<pt>","translation":"<en>","context":"<how it came up>"}],
+  "topics": ["<topic>"],
+  "mood": "confident|neutral|tired|frustrated|energetic",
+  "memory_update": "<updated 2-3 sentence notes about Shay. Keep existing + add new.>"
 }
+Max 8 new_vocabulary, max 5 accuracy errors. Only words Shay actually engaged with.`,
+    true
+  );
 
-Rules: max 5 mistakes (grammar only). max 8 new words (only ones Shay engaged with). Conservative deltas — normal session is +1 to +2.`,
-        },
-      ],
-    }),
-  });
+  // Step 2: Calculate scores deterministically
+  const compData = analysis.comprehension_data || [];
+  const understood = compData.filter(w => w.understood).length;
+  const compTotal = compData.length;
+  const sessionComp = compTotal > 0 ? (understood / compTotal) * 100 : profile.comprehension_score;
 
-  const gptData = await gptRes.json();
-  let analysis;
-  try {
-    analysis = JSON.parse(gptData.choices[0].message.content);
-  } catch (e) {
-    console.error('Failed to parse analysis:', e.message);
-    return;
+  const prodWords = analysis.production_words || [];
+  const knownCount = profile.words_known || 1;
+  const sessionProd = (prodWords.length / Math.max(knownCount, 1)) * 100;
+
+  const accData = analysis.accuracy_data || [];
+  const correctAttempts = accData.filter(a => a.correct).length;
+  const totalAttempts = accData.length;
+  const sessionAcc = totalAttempts > 0 ? (correctAttempts / totalAttempts) * 100 : profile.accuracy_score;
+
+  // Smooth: weighted average with existing (70% existing, 30% new session)
+  const newComp = Math.max(0, Math.min(100, profile.comprehension_score * 0.7 + sessionComp * 0.3));
+  const newProd = Math.max(0, Math.min(100, profile.production_score * 0.7 + sessionProd * 0.3));
+  const newAcc = Math.max(0, Math.min(100, profile.accuracy_score * 0.7 + sessionAcc * 0.3));
+
+  // Step 3: Update vocabulary with spaced repetition
+  for (const v of (analysis.new_vocabulary || [])) {
+    if (!v.word) continue;
+    const { data: existing } = await supabase.from('vocabulary')
+      .select('id, times_heard, times_used_correctly, times_used_incorrectly, review_interval_days')
+      .eq('user_id', 'default_user').eq('word', v.word).single();
+
+    if (existing) {
+      const th = (existing.times_heard || 0) + 1;
+      const tc = existing.times_used_correctly || 0;
+      const ti = existing.times_used_incorrectly || 0;
+      const mastery = (tc / (tc + ti + 1)) * Math.min(100, th * 10);
+      // Advance review interval
+      const newInterval = Math.min(60, (existing.review_interval_days || 1) * 2);
+      const nextReview = new Date(Date.now() + newInterval * 86400000).toISOString();
+      await supabase.from('vocabulary').update({
+        times_heard: th, mastery_score: mastery,
+        review_interval_days: newInterval, next_review_at: nextReview,
+        last_seen: new Date().toISOString(),
+      }).eq('id', existing.id);
+    } else {
+      const nextReview = new Date(Date.now() + 86400000).toISOString(); // 1 day
+      await supabase.from('vocabulary').insert({
+        user_id: 'default_user', word: v.word, translation: v.translation || '',
+        context_first_used: v.context || '', times_heard: 1, mastery_score: 10,
+        review_interval_days: 1, next_review_at: nextReview,
+        phase: profile.current_phase || 1, last_seen: new Date().toISOString(),
+      });
+    }
   }
 
-  const newComp = Math.max(0, Math.min(100, profile.comprehension_score + (analysis.comprehension_delta || 0)));
-  const newProd = Math.max(0, Math.min(100, profile.production_score + (analysis.production_delta || 0)));
-  const newAcc = Math.max(0, Math.min(100, profile.accuracy_score + (analysis.accuracy_delta || 0)));
-  const newPortugueseRatio = Math.max(15, Math.min(90, Math.round((newComp + newProd) / 2)));
+  // Update review words that were used correctly
+  for (const pw of prodWords) {
+    const { data: voc } = await supabase.from('vocabulary')
+      .select('id, times_used_correctly, times_heard, times_used_incorrectly, review_interval_days')
+      .eq('user_id', 'default_user').eq('word', pw).single();
+    if (voc) {
+      const tc = (voc.times_used_correctly || 0) + 1;
+      const ti = voc.times_used_incorrectly || 0;
+      const th = voc.times_heard || 1;
+      const mastery = (tc / (tc + ti + 1)) * Math.min(100, th * 10);
+      const newInterval = Math.min(60, (voc.review_interval_days || 1) * 2);
+      await supabase.from('vocabulary').update({
+        times_used_correctly: tc, mastery_score: mastery,
+        review_interval_days: newInterval,
+        next_review_at: new Date(Date.now() + newInterval * 86400000).toISOString(),
+      }).eq('id', voc.id);
+    }
+  }
 
+  // Reset interval for words used incorrectly
+  for (const a of accData.filter(x => !x.correct)) {
+    const { data: voc } = await supabase.from('vocabulary')
+      .select('id, times_used_incorrectly').eq('user_id', 'default_user').eq('word', a.attempt?.split(' ')?.[0]).single();
+    if (voc) {
+      await supabase.from('vocabulary').update({
+        times_used_incorrectly: (voc.times_used_incorrectly || 0) + 1,
+        review_interval_days: 1,
+        next_review_at: new Date(Date.now() + 86400000).toISOString(),
+      }).eq('id', voc.id);
+    }
+  }
+
+  // Count words known
+  const { count: wordsKnown } = await supabase.from('vocabulary')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', 'default_user').gte('mastery_score', 70);
+
+  // Check phase progression
+  let currentPhase = profile.current_phase || 1;
+  let phaseName = 'Survival';
+  const { data: phaseWords } = await supabase.from('curriculum')
+    .select('word').eq('phase', currentPhase);
+  if (phaseWords) {
+    const { count: masteredInPhase } = await supabase.from('vocabulary')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', 'default_user').eq('phase', currentPhase).gte('mastery_score', 70);
+    if (phaseWords.length > 0 && (masteredInPhase / phaseWords.length) >= 0.7) {
+      currentPhase = Math.min(currentPhase + 1, 4);
+      phaseName = currentPhase === 2 ? 'Daily Life' : currentPhase === 3 ? 'Social' : currentPhase === 4 ? 'Fluency' : 'Survival';
+    }
+  }
+
+  const newPortRatio = Math.max(15, Math.min(90, Math.round(newComp)));
+  const newSessions = profile.total_sessions + 1;
+
+  // Step 4: Save everything
   await supabase.from('user_profile').update({
-    comprehension_score: newComp,
-    production_score: newProd,
-    accuracy_score: newAcc,
-    current_english_ratio: 100 - newPortugueseRatio,
-    current_portuguese_ratio: newPortugueseRatio,
-    total_sessions: profile.total_sessions + 1,
+    comprehension_score: Math.round(newComp * 10) / 10,
+    production_score: Math.round(newProd * 10) / 10,
+    accuracy_score: Math.round(newAcc * 10) / 10,
+    current_english_ratio: 100 - newPortRatio,
+    current_portuguese_ratio: newPortRatio,
+    total_sessions: newSessions,
     total_minutes: (profile.total_minutes || 0) + Math.round(duration_seconds / 60),
-    goals: analysis.goals || profile.goals,
+    goals: analysis.memory_update || profile.goals,
+    words_known: wordsKnown || 0,
+    current_phase: currentPhase,
+    current_phase_name: phaseName,
     updated_at: new Date().toISOString(),
   }).eq('user_id', 'default_user');
 
@@ -310,102 +365,217 @@ Rules: max 5 mistakes (grammar only). max 8 new words (only ones Shay engaged wi
     started_at: new Date(Date.now() - duration_seconds * 1000).toISOString(),
     ended_at: new Date().toISOString(),
     duration_seconds,
-    language_ratio_used: { english: 100 - newPortugueseRatio, portuguese: newPortugueseRatio },
-    topics_discussed: analysis.topics_discussed || [],
-    mistakes: analysis.mistakes || [],
-    new_words_introduced: analysis.new_words_introduced || [],
-    corrections_made: (analysis.mistakes || []).length,
-    user_mood: analysis.user_mood || 'neutral',
-    session_summary: analysis.goals || '',
+    topics_discussed: analysis.topics || [],
+    mistakes: analysis.accuracy_data?.filter(a => !a.correct) || [],
+    new_words_introduced: analysis.new_vocabulary || [],
+    corrections_made: accData.filter(a => !a.correct).length,
+    user_mood: analysis.mood || 'neutral',
+    session_summary: analysis.memory_update || '',
     transcript,
+    comprehension_data: compData,
+    production_words: prodWords,
+    accuracy_data: accData,
   });
 
-  for (const v of (analysis.new_words_introduced || [])) {
-    if (!v.word) continue;
-    const { data: existing } = await supabase
-      .from('vocabulary')
-      .select('id, times_heard, times_used_correctly, times_used_incorrectly')
-      .eq('user_id', 'default_user')
-      .eq('word', v.word)
-      .single();
+  console.log(`Session ${newSessions} saved — C:${newComp.toFixed(1)} P:${newProd.toFixed(1)} A:${newAcc.toFixed(1)} known:${wordsKnown} phase:${phaseName}`);
 
-    if (existing) {
-      const th = (existing.times_heard || 0) + 1;
-      const tc = existing.times_used_correctly || 0;
-      const ti = existing.times_used_incorrectly || 0;
-      const mastery = (tc / (tc + ti + 1)) * Math.min(100, th * 10);
-      await supabase.from('vocabulary').update({
-        times_heard: th, mastery_score: mastery, last_seen: new Date().toISOString(),
-      }).eq('id', existing.id);
-    } else {
-      await supabase.from('vocabulary').insert({
-        user_id: 'default_user', word: v.word, translation: v.translation || '',
-        times_heard: 1, mastery_score: 10, last_seen: new Date().toISOString(),
-      });
+  // Step 5: Update learner model
+  try { await updateLearnerModel(analysis, transcriptText, newSessions); } catch (e) { console.error('Learner model update failed:', e.message); }
+
+  // Step 6: Generate next session plan
+  try { await generateSessionPlan(analysis, newComp, newProd); } catch (e) { console.error('Plan generation failed:', e.message); }
+
+  // Step 7: Pattern detection every 5 sessions
+  if (newSessions % 5 === 0) {
+    try { await runPatternDetection(newSessions); } catch (e) { console.error('Pattern detection failed:', e.message); }
+  }
+}
+
+// ── Learner model update ───────────────────────────────────────────────────
+
+async function updateLearnerModel(analysis, transcriptText, sessionNum) {
+  const { data: current } = await supabase.from('learner_model').select('narrative').eq('user_id', 'default_user').single();
+
+  const result = await gpt(
+    `You analyze how a specific language learner learns. Update the learner model. Be specific — name actual words, patterns, contexts. 150 words max for the narrative. Return JSON.`,
+    `Current model: ${current?.narrative || 'New learner'}
+Session ${sessionNum} analysis:
+- Comprehension: ${JSON.stringify(analysis.comprehension_data?.slice(0, 10))}
+- Production: ${JSON.stringify(analysis.production_words)}
+- Errors: ${JSON.stringify(analysis.accuracy_data)}
+- Mood: ${analysis.mood}
+- Topics: ${JSON.stringify(analysis.topics)}
+
+Transcript excerpt (last 800 chars): ${transcriptText.slice(-800)}
+
+Return: { "narrative": "...", "strongest_context": "food|social|transport|general", "weakest_area": "verbs|nouns|pronunciation|sentence_structure", "common_errors": ["..."], "optimal_session_minutes": 10-25 }`,
+    true
+  );
+
+  await supabase.from('learner_model').update({
+    narrative: result.narrative || current?.narrative,
+    strongest_context: result.strongest_context || 'unknown',
+    weakest_area: result.weakest_area || 'unknown',
+    common_errors: result.common_errors || [],
+    optimal_session_minutes: result.optimal_session_minutes || 15,
+    updated_at: new Date().toISOString(),
+  }).eq('user_id', 'default_user');
+
+  console.log('Learner model updated');
+}
+
+// ── Session plan generation ────────────────────────────────────────────────
+
+async function generateSessionPlan(lastAnalysis, comp, prod) {
+  const { data: model } = await supabase.from('learner_model').select('narrative').eq('user_id', 'default_user').single();
+  const { data: profile } = await supabase.from('user_profile').select('current_phase, current_phase_name, goals, total_sessions, words_known').eq('user_id', 'default_user').single();
+  const { data: reviewWords } = await supabase.from('vocabulary').select('word, translation')
+    .eq('user_id', 'default_user').lte('next_review_at', new Date(Date.now() + 86400000).toISOString()).lt('mastery_score', 90).limit(8);
+  const { data: currWords } = await supabase.from('curriculum').select('word, translation')
+    .eq('phase', profile?.current_phase || 1).limit(20);
+  const knownSet = new Set((await supabase.from('vocabulary').select('word').eq('user_id', 'default_user')).data?.map(v => v.word) || []);
+  const newAvailable = (currWords || []).filter(w => !knownSet.has(w.word));
+
+  const result = await gpt(
+    'You are Luna\'s strategic brain. Plan the next conversation. Return JSON. 100 words max for plan_text.',
+    `Learner: ${model?.narrative || 'New learner'}
+About him: ${profile?.goals || 'Lives in Rio'}
+Last session mood: ${lastAnalysis.mood}
+Topics: ${JSON.stringify(lastAnalysis.topics)}
+Comp: ${comp.toFixed(0)}, Prod: ${prod.toFixed(0)}
+Phase: ${profile?.current_phase_name}, Words known: ${profile?.words_known}
+Review due: ${(reviewWords || []).map(w => w.word).join(', ')}
+New available: ${newAvailable.slice(0, 6).map(w => `${w.word}(${w.translation})`).join(', ')}
+
+Return: { "plan_text": "...", "target_words": ["word1","word2"], "review_words": ["word1","word2"], "mood_approach": "light|push|easy", "opening_suggestion": "specific opening line or topic" }`,
+    true
+  );
+
+  await supabase.from('session_plan').insert({
+    user_id: 'default_user', plan_text: result.plan_text || '',
+    target_words: result.target_words || [], review_words: result.review_words || [],
+    mood_approach: result.mood_approach || 'light',
+    opening_suggestion: result.opening_suggestion || 'Ask about his day',
+  });
+
+  console.log('Next session plan generated');
+}
+
+// ── Pattern detection (every 5 sessions) ───────────────────────────────────
+
+async function runPatternDetection(sessionCount) {
+  const { data: sessions } = await supabase.from('session_log')
+    .select('session_summary, comprehension_data, production_words, accuracy_data, user_mood, topics_discussed, duration_seconds')
+    .eq('user_id', 'default_user').order('started_at', { ascending: false }).limit(5);
+
+  if (!sessions || sessions.length < 3) return;
+
+  const sessionsText = sessions.map((s, i) => `Session ${sessionCount - i}:
+  Summary: ${s.session_summary}
+  Mood: ${s.user_mood}
+  Topics: ${JSON.stringify(s.topics_discussed)}
+  Duration: ${Math.round(s.duration_seconds / 60)}min
+  Comprehension hits: ${(s.comprehension_data || []).filter(c => c.understood).length}/${(s.comprehension_data || []).length}
+  Production: ${(s.production_words || []).join(', ') || 'none'}
+  Errors: ${(s.accuracy_data || []).filter(a => !a.correct).map(a => a.attempt).join(', ') || 'none'}`
+  ).join('\n\n');
+
+  const result = await gpt(
+    'Analyze 5 consecutive language learning sessions for patterns. Return JSON.',
+    `${sessionsText}
+
+Return: {
+  "insights": [{"type":"retention|error|engagement|production","finding":"specific finding"}],
+  "recommendations": ["specific recommendation"],
+  "narrative": "2-3 sentence summary of patterns observed"
+}`,
+    true
+  );
+
+  await supabase.from('pattern_insights').insert({
+    user_id: 'default_user', sessions_analyzed: sessions.length,
+    insights: result.insights || [], recommendations: result.recommendations || [],
+    narrative: result.narrative || '',
+  });
+
+  // Feed insights into learner model
+  const { data: model } = await supabase.from('learner_model').select('narrative').eq('user_id', 'default_user').single();
+  if (model && result.narrative) {
+    await supabase.from('learner_model').update({
+      narrative: `${model.narrative}\n\nPattern analysis (sessions ${sessionCount - 4}-${sessionCount}): ${result.narrative}`,
+      updated_at: new Date().toISOString(),
+    }).eq('user_id', 'default_user');
+  }
+
+  console.log('Pattern detection complete');
+}
+
+// ── GET /progress ──────────────────────────────────────────────────────────
+
+app.get('/progress', async (req, res) => {
+  const [profileRes, vocabRes, sessionsRes, modelRes] = await Promise.all([
+    supabase.from('user_profile').select('name, comprehension_score, production_score, accuracy_score, total_sessions, total_minutes, words_known, current_phase, current_phase_name, created_at').eq('user_id', 'default_user').single(),
+    supabase.from('vocabulary').select('word, translation, mastery_score, introduced_at, times_heard, times_used_correctly').eq('user_id', 'default_user').order('mastery_score', { ascending: false }),
+    supabase.from('session_log').select('started_at, duration_seconds, session_summary, topics_discussed, new_words_introduced, mistakes, user_mood').eq('user_id', 'default_user').order('started_at', { ascending: false }).limit(10),
+    supabase.from('learner_model').select('narrative, strongest_context, weakest_area').eq('user_id', 'default_user').single(),
+  ]);
+
+  // Phase completion
+  let phaseCompletion = 0;
+  if (profileRes.data) {
+    const { data: phaseWords } = await supabase.from('curriculum').select('word').eq('phase', profileRes.data.current_phase);
+    if (phaseWords?.length) {
+      const { count } = await supabase.from('vocabulary')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', 'default_user').eq('phase', profileRes.data.current_phase).gte('mastery_score', 70);
+      phaseCompletion = Math.round((count / phaseWords.length) * 100);
     }
   }
 
-  console.log(`Session saved — C:${newComp.toFixed(1)} P:${newProd.toFixed(1)} A:${newAcc.toFixed(1)}`);
-}
+  res.json({
+    profile: profileRes.data,
+    phaseCompletion,
+    vocabulary: vocabRes.data || [],
+    sessions: sessionsRes.data || [],
+    learnerModel: modelRes.data,
+  });
+});
+
+// ── GET /recap/latest ──────────────────────────────────────────────────────
+
+app.get('/recap/latest', async (req, res) => {
+  const { data } = await supabase.from('session_log')
+    .select('duration_seconds, session_summary, new_words_introduced, topics_discussed, user_mood, comprehension_data, production_words')
+    .eq('user_id', 'default_user').order('started_at', { ascending: false }).limit(1).single();
+  res.json(data || null);
+});
 
 // ── POST /translate ────────────────────────────────────────────────────────
 
 app.post('/translate', async (req, res) => {
   const { word } = req.body || {};
   if (!word) return res.json({ translation: '—', language: 'unknown' });
-
   try {
-    const r = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        max_tokens: 40,
-        temperature: 0,
-        response_format: { type: 'json_object' },
-        messages: [
-          {
-            role: 'system',
-            content: 'Return JSON: { "language": "pt" or "en", "translation": "concise translation", "note": "optional 5-word usage note" }. Portuguese → English meaning. English → brief definition. Be concise.',
-          },
-          { role: 'user', content: word },
-        ],
-      }),
-    });
-    const data = await r.json();
-    res.json(JSON.parse(data.choices[0].message.content));
+    const result = await gpt(
+      'Return JSON: { "language": "pt" or "en", "translation": "concise", "note": "5 word usage note or null" }',
+      word, true
+    );
+    res.json(result);
   } catch (err) {
-    console.error('Translate error:', err.message);
     res.json({ translation: '—', language: 'unknown' });
   }
 });
 
-// ── GET /health ────────────────────────────────────────────────────────────
-
 app.get('/health', async (req, res) => {
-  const [profileRes, sessionRes, vocabRes] = await Promise.all([
-    supabase.from('user_profile').select('name, total_sessions, comprehension_score, production_score, goals').eq('user_id', 'default_user').single(),
-    supabase.from('session_log').select('started_at, session_summary').eq('user_id', 'default_user').order('started_at', { ascending: false }).limit(3),
-    supabase.from('vocabulary').select('word, mastery_score').eq('user_id', 'default_user').limit(10),
-  ]);
-  res.json({
-    profile: profileRes.data,
-    has_memory: !!profileRes.data?.goals,
-    memory_preview: profileRes.data?.goals?.slice(0, 120) || null,
-    recent_sessions: sessionRes.data?.length || 0,
-    vocab_count: vocabRes.data?.length || 0,
-    vocab_sample: vocabRes.data?.map(v => v.word) || [],
-  });
-});
-
-app.get('/profile', async (req, res) => {
-  const { data, error } = await supabase.from('user_profile').select('*').eq('user_id', 'default_user').single();
-  if (error) return res.status(500).json({ error: error.message });
-  res.json(data);
+  const { data: p } = await supabase.from('user_profile').select('name,total_sessions,words_known,current_phase_name,comprehension_score').eq('user_id', 'default_user').single();
+  const { data: m } = await supabase.from('learner_model').select('narrative').eq('user_id', 'default_user').single();
+  const { data: plan } = await supabase.from('session_plan').select('plan_text,opening_suggestion').eq('user_id', 'default_user').eq('used', false).order('created_at', { ascending: false }).limit(1).single();
+  res.json({ profile: p, learnerModel: m?.narrative?.slice(0, 200), nextPlan: plan?.plan_text?.slice(0, 200), nextOpening: plan?.opening_suggestion });
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Luna running on port ${PORT}`));
+
+process.on('uncaughtException', (err) => console.error('UNCAUGHT:', err.message, err.stack));
+process.on('unhandledRejection', (err) => console.error('UNHANDLED:', err));
+
+app.listen(PORT, () => console.log(`Luna V3 running on port ${PORT}`));
