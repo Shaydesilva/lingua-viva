@@ -52,7 +52,7 @@ function getProductionBehavior(comp, prod) {
 
 // ── System prompt builder ──────────────────────────────────────────────────
 
-function buildSystemPrompt(profile, memory, learnerModel, plan, targetWords, reviewWords) {
+function buildSystemPrompt(profile, memory, learnerModel, plan, targetWords, reviewWords, cultural) {
   const interests = Array.isArray(profile.interests) ? profile.interests.join(', ') : profile.interests || '';
   const langRules = getLanguageBehavior(profile.comprehension_score);
   const prodRules = getProductionBehavior(profile.comprehension_score, profile.production_score);
@@ -64,6 +64,10 @@ function buildSystemPrompt(profile, memory, learnerModel, plan, targetWords, rev
   const modelBlock = learnerModel?.narrative && learnerModel.narrative !== 'New learner. No patterns observed yet.'
     ? `## How He Learns (private notes)\n${learnerModel.narrative}` : '';
 
+  const pronBlock = learnerModel?.pronunciation_notes
+    ? `\n## Pronunciation\n${learnerModel.pronunciation_notes}\nWhen you use these words, pronounce them clearly. Don't comment on his pronunciation — just model the correct sound naturally.`
+    : '';
+
   const planBlock = plan
     ? `## Today's Approach\n${plan.plan_text}\nOpening idea: ${plan.opening_suggestion || 'Ask about his day'}\nMood: ${plan.mood_approach || 'light and casual'}`
     : '';
@@ -74,6 +78,10 @@ function buildSystemPrompt(profile, memory, learnerModel, plan, targetWords, rev
 
   const reviewBlock = reviewWords.length
     ? `## Review Words\nHe's seen these before. Use them without translating unless he seems confused:\n${reviewWords.map(w => `- ${w.word} (${w.translation})`).join('\n')}`
+    : '';
+
+  const culturalBlock = cultural
+    ? `## Cultural Insight\nIf the conversation goes there naturally, share this:\n"${cultural.concept}" — ${cultural.explanation}\nDon't force it. Don't say "here's a cultural fact." Weave it in like a local explaining how things work. If it doesn't fit, skip it.`
     : '';
 
   return `## YOUR DEFAULT LANGUAGE IS ENGLISH
@@ -91,11 +99,15 @@ ${memBlock}
 
 ${modelBlock}
 
+${pronBlock}
+
 ${planBlock}
 
 ${targetBlock}
 
 ${reviewBlock}
+
+${culturalBlock}
 
 ## How Portuguese Comes Up
 - Always give the SHORTEST street version. "Tô com fome" not "Eu estou com fome". "Cadê?" not "Onde fica?"
@@ -154,6 +166,16 @@ app.post('/session', async (req, res) => {
       .order('sort_order').limit(30);
     const targetWords = (currWords || []).filter(w => !knownWords.has(w.word)).slice(0, 3);
 
+    // Load one cultural concept for this phase
+    let cultural = null;
+    try {
+      const { data: concept } = await supabase.from('cultural_concepts')
+        .select('id, concept, explanation, related_words')
+        .eq('introduced', false).lte('phase', profile.current_phase || 1)
+        .limit(1).single();
+      cultural = concept || null;
+    } catch { cultural = null; }
+
     // Generate memory paragraph
     let memory = null;
     if (profile.goals) {
@@ -170,11 +192,11 @@ app.post('/session', async (req, res) => {
       await supabase.from('session_plan').update({ used: true }).eq('id', plan.id);
     }
 
-    instructions = buildSystemPrompt(profile, memory, learnerModel, plan, targetWords, reviewWords);
-    console.log(`Session ready — C:${profile.comprehension_score} P:${profile.production_score} phase:${profile.current_phase_name} plan:${plan ? 'yes' : 'none'} review:${reviewWords.length} target:${targetWords.length}`);
+    instructions = buildSystemPrompt(profile, memory, learnerModel, plan, targetWords, reviewWords, cultural);
+    console.log(`Session ready — C:${profile.comprehension_score} P:${profile.production_score} phase:${profile.current_phase_name} plan:${plan ? 'yes' : 'none'} review:${reviewWords.length} target:${targetWords.length} cultural:${cultural ? cultural.concept : 'none'}`);
   } catch (err) {
     console.error('Session build failed:', err.message);
-    instructions = buildSystemPrompt(DEFAULT_PROFILE, null, null, null, [], []);
+    instructions = buildSystemPrompt(DEFAULT_PROFILE, null, null, null, [], [], null);
   }
 
   try {
@@ -226,15 +248,18 @@ ${transcriptText}
 
 Return JSON:
 {
-  "comprehension_data": [{"word":"<pt word>","understood":true/false}],
+  "comprehension_data": [{"word":"<pt word Luna used>","understood":true/false}],
   "production_words": ["<pt words Shay used unprompted>"],
   "accuracy_data": [{"attempt":"<what Shay said>","correct":true/false,"correction":"<if wrong>","note":"<brief>"}],
   "new_vocabulary": [{"word":"<pt>","translation":"<en>","context":"<how it came up>"}],
+  "pronunciation_signals": [{"word":"<intended pt word>","transcribed_as":"<how Whisper heard it>","issue":"<what seems off>"}],
   "topics": ["<topic>"],
   "mood": "confident|neutral|tired|frustrated|energetic",
+  "cultural_concept_shared": true/false,
   "memory_update": "<updated 2-3 sentence notes about Shay. Keep existing + add new.>"
 }
-Max 8 new_vocabulary, max 5 accuracy errors. Only words Shay actually engaged with.`,
+Max 8 new_vocabulary, max 5 accuracy errors, max 5 pronunciation_signals.
+For pronunciation_signals: compare Shay's Portuguese attempts against correct spelling. If Whisper transcribed it differently, that likely means pronunciation was off. Only flag Portuguese words.`,
     true
   );
 
@@ -326,6 +351,41 @@ Max 8 new_vocabulary, max 5 accuracy errors. Only words Shay actually engaged wi
     .select('id', { count: 'exact', head: true })
     .eq('user_id', 'default_user').gte('mastery_score', 70);
 
+  // Update pronunciation data in learner model
+  const pronSignals = analysis.pronunciation_signals || [];
+  if (pronSignals.length > 0) {
+    const { data: lm } = await supabase.from('learner_model')
+      .select('mispronounced_words, pronunciation_notes')
+      .eq('user_id', 'default_user').single();
+    const existing = lm?.mispronounced_words || [];
+    const merged = [...existing];
+    for (const sig of pronSignals) {
+      const idx = merged.findIndex(m => m.word === sig.word);
+      if (idx >= 0) { merged[idx].count = (merged[idx].count || 1) + 1; merged[idx].latest = sig.transcribed_as; }
+      else { merged.push({ word: sig.word, transcribed_as: sig.transcribed_as, issue: sig.issue, count: 1 }); }
+    }
+    merged.sort((a, b) => (b.count || 1) - (a.count || 1));
+    const top = merged.slice(0, 15);
+    const pronNote = top.length > 0
+      ? `Pronunciation patterns: ${top.slice(0, 5).map(m => `"${m.word}" heard as "${m.transcribed_as || m.latest}" (${m.count}x)`).join('; ')}`
+      : lm?.pronunciation_notes || null;
+    await supabase.from('learner_model').update({
+      mispronounced_words: top, pronunciation_notes: pronNote, updated_at: new Date().toISOString(),
+    }).eq('user_id', 'default_user');
+  }
+
+  // Mark cultural concept as introduced if Luna shared it
+  if (analysis.cultural_concept_shared) {
+    const { data: concept } = await supabase.from('cultural_concepts')
+      .select('id').eq('introduced', false).lte('phase', profile.current_phase || 1)
+      .order('phase').limit(1).single();
+    if (concept) {
+      await supabase.from('cultural_concepts').update({
+        introduced: true, introduced_at: new Date().toISOString(),
+      }).eq('id', concept.id);
+    }
+  }
+
   // Check phase progression
   let currentPhase = profile.current_phase || 1;
   let phaseName = 'Survival';
@@ -403,6 +463,7 @@ Session ${sessionNum} analysis:
 - Comprehension: ${JSON.stringify(analysis.comprehension_data?.slice(0, 10))}
 - Production: ${JSON.stringify(analysis.production_words)}
 - Errors: ${JSON.stringify(analysis.accuracy_data)}
+- Pronunciation signals: ${JSON.stringify(analysis.pronunciation_signals || [])}
 - Mood: ${analysis.mood}
 - Topics: ${JSON.stringify(analysis.topics)}
 
