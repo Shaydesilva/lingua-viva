@@ -101,6 +101,19 @@
 
     .welcome{text-align:center;padding:40px 20px;color:var(--text3);font-size:14px;line-height:1.6}
     .welcome h2{font-family:'Instrument Serif',serif;font-size:28px;font-style:italic;color:var(--text);margin-bottom:8px;font-weight:400}
+
+    /* Translate button + area */
+    .msg-wrap{display:flex;flex-direction:column;max-width:88%;animation:fadeUp .2s ease}
+    .msg-wrap.luna{align-self:flex-start}
+    .msg-wrap.user{align-self:flex-end}
+    .tl-btn{align-self:flex-start;margin-top:4px;padding:2px 8px;border:none;background:none;font-size:11px;color:var(--text3);cursor:pointer;display:flex;align-items:center;gap:3px;-webkit-tap-highlight-color:transparent;border-radius:8px;transition:background .15s}
+    .tl-btn:active{background:var(--bg2)}
+    .tl-btn svg{width:12px;height:12px;opacity:.5}
+    .msg-wrap.user .tl-btn{align-self:flex-end;color:var(--text3)}
+    .tl-area{font-size:13px;color:var(--text2);background:var(--bg2);border-radius:10px;padding:8px 12px;margin-top:4px;line-height:1.45;display:none;animation:fadeUp .15s ease}
+    .tl-area.show{display:block}
+    .tl-area.loading{color:var(--text3);font-style:italic}
+    .msg-wrap.user .tl-area{text-align:right}
   </style>
 </head>
 <body>
@@ -171,7 +184,22 @@ function fillWords(el,txt){txt.split(/(\s+)/).forEach(t=>{if(/^\s+$/.test(t))el.
 function onD(d){if(!lunaT)$('live').innerHTML='';lunaT+=d;for(const ch of d){if(ch===' '||ch==='\n'){if(wBuf){if(wEl){wEl.remove();wEl=null}$('live').appendChild(mkW(wBuf));wBuf=''}$('live').appendChild(mkSp())}else{wBuf+=ch;if(!wEl){wEl=document.createElement('span');wEl.className='w-live';$('live').appendChild(wEl)}wEl.textContent=wBuf}}}
 function onDone(){if(wBuf){if(wEl){wEl.remove();wEl=null}$('live').appendChild(mkW(wBuf));wBuf=''}if(wEl){wEl.remove();wEl=null}const t=lunaT.trim();if(t){transcript.push({role:'assistant',text:t});addMsg('luna',t)}lunaT='';$('live').innerHTML=''}
 
-function addMsg(r,t){const w=$('welc');if(w)w.remove();const m=document.createElement('div');m.className='msg '+r;const b=document.createElement('div');b.className='bubble';if(r==='luna')fillWords(b,t);else b.textContent=t;m.appendChild(b);$('chat').appendChild(m);$('chat').scrollTop=$('chat').scrollHeight}
+function addMsg(r,t){const w=$('welc');if(w)w.remove();
+const wrap=document.createElement('div');wrap.className='msg-wrap '+r;
+const bubble=document.createElement('div');bubble.className='bubble';
+if(r==='luna')fillWords(bubble,t);else bubble.textContent=t;
+
+const tlArea=document.createElement('div');tlArea.className='tl-area';
+const tlBtn=document.createElement('button');tlBtn.className='tl-btn';
+tlBtn.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 5h5M9 3v2M4.5 5C5.4 8.5 8 11 11 12.5M7 5c-.7 2.5-2 4.5-4 6M12.5 22l3-7 3 7M14 18h3"/></svg>'+(r==='luna'?'em português':'in Portuguese');
+tlBtn.onclick=async()=>{
+if(tlArea.classList.contains('show')){tlArea.classList.remove('show');return}
+tlArea.className='tl-area show loading';tlArea.textContent='Translating…';
+try{const res=await fetch('/translate-message',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:t,from:r==='luna'?'en':'en',to:'pt'})});const d=await res.json();tlArea.className='tl-area show';tlArea.textContent=d.translation||'—'}
+catch{tlArea.className='tl-area show';tlArea.textContent='Translation failed'}};
+
+wrap.appendChild(bubble);wrap.appendChild(tlBtn);wrap.appendChild(tlArea);
+$('chat').appendChild(wrap);$('chat').scrollTop=$('chat').scrollHeight}
 
 // Tooltip
 async function showTip(w,a){if(popup){popup.remove();popup=null}const tt=document.createElement('div');tt.className='tip';tt.innerHTML=`<div class="tip-w">${w}</div><div class="tip-spin"></div>`;document.body.appendChild(tt);popup=tt;posTip(tt,a);const k=w.toLowerCase();if(!tcache[k]){try{const r=await fetch('/translate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({word:w})});tcache[k]=await r.json()}catch{tcache[k]={translation:'—',language:'unknown'}}}if(tt!==popup)return;const d=tcache[k];let h='';if(d.language==='pt')h+='<div class="tip-b">Portuguese</div>';h+=`<div class="tip-w">${w}</div><div class="tip-d">${d.translation||'—'}</div>`;if(d.note)h+=`<div class="tip-n">${d.note}</div>`;tt.innerHTML=h;setTimeout(()=>{if(tt===popup){tt.remove();popup=null}},4000)}
@@ -196,6 +224,7 @@ case 'response.output_audio_transcript.delta':case 'response.audio_transcript.de
 case 'response.output_audio_transcript.done':case 'response.audio_transcript.done':onDone();setSt(ptt?'Hold to talk':'Listening…','listen');break;
 case 'response.done':setSt(ptt?'Hold to talk':'Listening…','listen');if(bye){bye=false;setTimeout(endSession,2000)}break;
 case 'conversation.item.input_audio_transcription.completed':{const t=e.transcript?.trim();if(!t)break;addMsg('user',t);transcript.push({role:'user',text:t});const lo=t.toLowerCase();if(GOODBYE.some(p=>lo.includes(p)))bye=true;checkCtx(t);const conf=CONFUSE.some(s=>s.length<=4?lo===s||lo===s.replace('?',''):lo.includes(s));if(conf&&dc?.readyState==='open')dc.send(JSON.stringify({type:'conversation.item.create',item:{type:'message',role:'system',content:[{type:'input_text',text:"He didn't understand. Say it again in plain English."}]}}));break}
+case 'conversation.item.input_audio_transcription.delta':{/* partial user transcript — show as pending */break}
 case 'input_audio_buffer.speech_started':setSt('Listening…','listen');break;
 case 'input_audio_buffer.speech_stopped':setSt('Thinking…','');break;
 case 'error':console.error('RT error:',e);setSt(e.error?.message||'Error','');break;
