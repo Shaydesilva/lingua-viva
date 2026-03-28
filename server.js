@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
+const { Pool } = require('pg');
 
 const app = express();
 app.use(cors());
@@ -378,7 +379,29 @@ app.get('/profile', async (req, res) => {
   res.json(data);
 });
 
+// ── Migrations ────────────────────────────────────────────────────────────
+async function runMigrations() {
+  const dbUrl = process.env.DATABASE_URL;
+  if (!dbUrl) {
+    console.log('DATABASE_URL not set — skipping auto-migration (run SQL manually if needed)');
+    return;
+  }
+  const pool = new Pool({ connectionString: dbUrl, ssl: { rejectUnauthorized: false } });
+  try {
+    await pool.query(`
+      ALTER TABLE user_profile ADD COLUMN IF NOT EXISTS profile_summary TEXT;
+    `);
+    console.log('Migration OK: profile_summary column ready');
+  } catch (err) {
+    console.error('Migration failed (non-fatal):', err.message);
+  } finally {
+    await pool.end();
+  }
+}
+
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Luna is listening on port ${PORT}`);
+runMigrations().then(() => {
+  app.listen(PORT, () => {
+    console.log(`Luna is listening on port ${PORT}`);
+  });
 });
