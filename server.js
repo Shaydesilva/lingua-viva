@@ -611,6 +611,23 @@ app.get('/recap/latest', async (req, res) => {
   res.json(data || null);
 });
 
+// ── POST /translate-message ─────────────────────────────────────────────────
+
+app.post('/translate-message', async (req, res) => {
+  const { text, to } = req.body || {};
+  if (!text) return res.json({ translation: '—' });
+  try {
+    const result = await gpt(
+      `Translate this to Brazilian Portuguese. Return JSON: { "translation": "..." }. Use casual, street-level carioca Portuguese — contractions like tô, tá, cadê. Masculine forms for the speaker. If it's already in Portuguese, translate to English instead. Keep it natural, not formal.`,
+      text, true
+    );
+    res.json(result);
+  } catch (err) {
+    console.error('Translate message error:', err.message);
+    res.json({ translation: '—' });
+  }
+});
+
 // ── POST /translate ────────────────────────────────────────────────────────
 
 app.post('/translate', async (req, res) => {
