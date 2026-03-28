@@ -610,6 +610,19 @@ app.get('/recap/latest', async (req, res) => {
     .eq('user_id', 'default_user').order('started_at', { ascending: false }).limit(1).single();
   res.json(data || null);
 });
+app.post('/translate-message', async (req, res) => {
+  var text = (req.body || {}).text;
+  if (!text) return res.json({ translation: '—' });
+  try {
+    var result = await gpt(
+      'Translate this text. If it is English, translate to casual Brazilian Portuguese (carioca, masculine forms, contractions like tô/tá/cadê). If it is Portuguese, translate to English. Return JSON: { "translation": "..." }',
+      text, true
+    );
+    res.json(result);
+  } catch (err) {
+    res.json({ translation: '—' });
+  }
+});
 
 // ── POST /translate ────────────────────────────────────────────────────────
 
