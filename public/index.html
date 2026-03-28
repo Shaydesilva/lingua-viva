@@ -12,12 +12,12 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg:       #0C0A10;
+      --bg:       #0F0C16;
       --surface:  #17131F;
       --surface2: #211C2E;
       --border:   #2A2438;
       --text:     #EDE8F5;
-      --muted:    #6B607E;
+      --muted:    #9B90AE;
       --accent:   #FF6B4A;
       --accent2:  #FF9A5C;
       --pt:       #E8B86D;
@@ -131,21 +131,13 @@
     .turn-body {
       font-size: 14px;
       line-height: 1.55;
-      color: rgba(237, 232, 245, 0.55);
+      color: rgba(237, 232, 245, 0.75);
       display: flex;
       flex-wrap: wrap;
     }
     .turn-body.you {
       color: rgba(255, 154, 92, 0.75);
       justify-content: flex-end;
-    }
-
-    /* ── Divider ── */
-    .rule {
-      flex-shrink: 0;
-      height: 1px;
-      margin: 0 20px;
-      background: linear-gradient(90deg, transparent, var(--border) 15%, var(--border) 85%, transparent);
     }
 
     /* ── Live area ── */
@@ -157,6 +149,8 @@
       flex-direction: column;
       justify-content: flex-end;
       gap: 8px;
+      background: rgba(255, 107, 74, 0.03);
+      border-top: 1px solid rgba(255, 107, 74, 0.1);
     }
 
     #statusRow {
@@ -183,7 +177,7 @@
     }
 
     #statusTxt {
-      font-size: 12px;
+      font-size: 14px;
       color: var(--muted);
       letter-spacing: 0.02em;
     }
@@ -228,7 +222,7 @@
     .wlive {
       font-size: 20px;
       line-height: 1.5;
-      color: rgba(237, 232, 245, 0.28);
+      color: rgba(237, 232, 245, 0.4);
       padding: 0 2px;
       display: inline;
       pointer-events: none;
@@ -380,8 +374,6 @@
 
   <div id="history"></div>
 
-  <div class="rule"></div>
-
   <div id="live">
     <div id="statusRow">
       <span class="dot" id="dot"></span>
@@ -516,6 +508,8 @@
 
   // Stream live words into #liveText as delta arrives
   function onDelta(delta) {
+    // Clear previous response on first delta of a new response
+    if (!lunaBuffer) liveTextEl.innerHTML = '';
     lunaBuffer += delta;
     for (const ch of delta) {
       if (ch === ' ' || ch === '\n') {
@@ -567,7 +561,6 @@
       historyEl.scrollTop = historyEl.scrollHeight;
     }
 
-    liveTextEl.innerHTML = '';
     lunaBuffer = '';
   }
 
@@ -714,6 +707,8 @@
     sessionTranscript = [];
     historyEl.innerHTML = '';
     liveTextEl.innerHTML = '';
+    const welcome = document.getElementById('welcome');
+    if (welcome) welcome.remove();
 
     try {
       const sr = await fetch('/session', {
@@ -796,6 +791,7 @@
     sessionTranscript = []; sessionStartTime = null;
     pendingGoodbye = false; costCapTriggered = false;
     cleanup();
+    showWelcome();
   }
 
   function cleanup() {
@@ -811,6 +807,17 @@
     if (state === 'idle') startSession();
     else if (state === 'connected') endSession();
   }
+
+  // ── Welcome state ──────────────────────────────────────────────────────────
+  function showWelcome() {
+    const el = document.createElement('div');
+    el.id = 'welcome';
+    el.style.cssText = 'padding: 20px 2px; color: #9B90AE; font-size: 14px; line-height: 1.6;';
+    el.textContent = 'Tap start and say anything — Luna will respond in English with Portuguese words woven in naturally. Tap any word she says to see its meaning.';
+    historyEl.appendChild(el);
+  }
+
+  showWelcome();
 </script>
 </body>
 </html>
