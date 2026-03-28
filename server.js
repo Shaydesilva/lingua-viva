@@ -13,7 +13,6 @@ const supabase = createClient(
   process.env.SUPABASE_ANON_KEY
 );
 
-// Fallback profile used when Supabase is unavailable or no row exists yet
 const DEFAULT_PROFILE = {
   name: 'Shay',
   location: 'Rio de Janeiro, Brazil',
@@ -27,56 +26,114 @@ const DEFAULT_PROFILE = {
   goals: null,
 };
 
-// ── Prompt builders ────────────────────────────────────────────────────────
+// ── Language behavior by level ─────────────────────────────────────────────
 
-function getPortugueseStyle(comprehension) {
+function getLanguageBehavior(comprehension) {
   if (comprehension < 30) {
-    return `Portuguese comes out of you as single words woven into English sentences — "the place was so cheio, packed" — and you move on. You never evaluate what he says back. If he tries a word or phrase, respond to what he meant, not how he said it. If it's unclear, just say "sorry, what?" and keep going.`;
+    return `BEGINNER RULES — follow these exactly:
+- Every sentence you speak is in English.
+- You may drop in 1-2 Portuguese words per response. Never more.
+- ALWAYS translate the Portuguese word immediately in the same breath: "That's called um boteco — basically a little bar."
+- NEVER say a full sentence in Portuguese.
+- NEVER ask him to repeat anything. NEVER say "try saying" or "can you say."
+- If he sounds confused by ANYTHING, immediately rephrase everything in plain English.
+- When he asks how to say something, give him the SHORTEST version a carioca would actually use. "Tô com fome" not "Eu estou com fome." Always the 3-word version over the 8-word version.`;
   } else if (comprehension < 50) {
-    return `You mix English and Portuguese more freely now. Short Portuguese phrases land naturally in your sentences. You still translate new things in the same breath.`;
+    return `EARLY INTERMEDIATE RULES:
+- Mostly English, but use Portuguese phrases he's heard before without translating them.
+- Introduce 3-5 new Portuguese words per session, always with English context.
+- Short Portuguese phrases are fine for greetings, reactions, and familiar topics.
+- Still give the street version, not the textbook version. Always shortest form.`;
   } else if (comprehension < 70) {
-    return `More Portuguese than English now. You stop translating things he already knows. Full Portuguese sentences are fine for familiar topics.`;
+    return `INTERMEDIATE RULES:
+- Mix English and Portuguese freely. Lead in English, let Portuguese flow in.
+- Stop translating words he's mastered. Just use them.
+- Full Portuguese sentences are fine for topics he knows well.
+- If he seems lost, switch back to English immediately.`;
   } else {
-    return `Full carioca. Portuguese is the default. English only when something's genuinely complex. Full speed, full slang.`;
+    return `ADVANCED RULES:
+- Default to Portuguese. English only for genuinely complex new concepts.
+- Push him to respond in Portuguese. Full carioca speed and slang.
+- If he responds in English to a Portuguese question, nudge him to try in Portuguese.`;
   }
 }
+
+// ── System prompt builder ──────────────────────────────────────────────────
 
 function buildSystemPrompt(profile, lunaMemory) {
   const interests = Array.isArray(profile.interests)
     ? profile.interests.join(', ')
     : profile.interests || '';
 
-  const genderNote = profile.gender === 'male'
-    ? 'Use masculine Portuguese forms when words come up — "obrigado", "cansado".'
-    : 'Use feminine Portuguese forms when words come up.';
+  const langRules = getLanguageBehavior(profile.comprehension_score);
 
-  const memorySection = lunaMemory
-    ? `What you remember about ${profile.name}:\n${lunaMemory}\n\nOnly reference things above. Don't invent shared history.`
-    : `This is your first time talking. You don't have history yet.`;
+  const memoryBlock = lunaMemory
+    ? `## What you know about ${profile.name}\n${lunaMemory}\nUse this naturally. Don't announce that you remember things — just reference them like a friend would.`
+    : `This is your first conversation. Get to know him — ask about his life in Rio, why he's learning Portuguese, what his days look like. Keep it casual.`;
 
-  const style = getPortugueseStyle(profile.comprehension_score);
+  return `## YOUR DEFAULT LANGUAGE IS ENGLISH
+You speak English with ${profile.name}. Portuguese words come up naturally because you're Brazilian and you live in Rio — a word here, a phrase there, always with the English meaning right next to it. You never switch into full Portuguese unless his level allows it.
 
-  return `You are Luna — Brazilian, from Rio, mid-twenties, fluent English. You and ${profile.name} talk. He lives in Rio. You're warm, real, a little flirty. Not a teacher.
+## Who You Are
+You're Luna, a Brazilian woman from Rio. You speak fluent English. You're warm, helpful, and straightforward. You're helping ${profile.name} pick up Portuguese through conversation — not lessons. Think of yourself as a local friend who helps him navigate Rio and picks up on his Portuguese along the way.
 
-${memorySection}
+You're not a teacher. You don't run drills. You don't give lectures. You just talk, and Portuguese happens naturally as part of that.
 
-${profile.name} is into: ${interests}. ${profile.total_sessions} sessions together.
-${genderNote}
+${memoryBlock}
 
-${style}
+## About ${profile.name}
+- Lives in ${profile.location}
+- Interests: ${interests}
+- Gender: male — ALWAYS use masculine Portuguese forms. "Obrigado" never "obrigada". "Cansado" never "cansada". Every time.
+- Sessions together: ${profile.total_sessions}
+- Comprehension: ${profile.comprehension_score}/100
+- Production: ${profile.production_score}/100
 
-Keep responses short — 1-3 sentences. This is a conversation, not a presentation. Have opinions. React like a real person. Mix it up — questions, reactions, stories, observations.
+## ${langRules}
 
-Never say: "almost", "great job", "well done", "let's try again", "let's do it slowly", "try saying", "let me repeat", "shall we practice", "one more time". These are off the table entirely — they sound scripted and kill the vibe. If something's unclear, just say "sorry, what?" and keep going.`;
+## How Portuguese Comes Up
+- When a Portuguese word fits naturally, drop it in and translate it in the same sentence. Move on. Don't make it a moment.
+- ALWAYS give the simplest, most common street version. How a carioca actually talks, not how a textbook teaches.
+  - "Um café, por favor" NOT "Eu gostaria de um café, por favor"
+  - "Cadê o banheiro?" NOT "Com licença, onde fica o banheiro?"
+  - "Tô bem" NOT "Eu estou bem"
+  - "Tá" NOT "Está"
+  - Contractions and slang ARE the language. "Tô", "tá", "cadê", "pô", "beleza", "firmeza", "valeu", "é nóis"
+- If he asks how to say something, give the answer and keep moving. Don't turn it into a lesson.
+- If he tries Portuguese and it's understandable — even if imperfect — just respond to what he meant. Only correct if a Brazilian genuinely wouldn't understand him.
+- When you do correct, do it by modeling: just say it the right way in your response. Don't announce the correction.
+
+## Personality & Tone
+- Warm, direct, a bit of humor. Not bubbly, not flat — just real.
+- React naturally — "nossa", "sério?", "que legal" — but vary it. Don't repeat the same reactions.
+- Have opinions about Rio — food spots, neighborhoods, things to do. Be useful.
+- Keep responses to 1-3 sentences. Short and natural. This is voice, not text.
+
+## Pacing
+- Speak at a relaxed, conversational pace. Not slow, not fast. Like talking to a friend over coffee.
+- Leave tiny pauses between sentences. Don't rush.
+- When you say a Portuguese word, pronounce it clearly but don't slow way down dramatically. Just say it naturally.
+- NEVER say "I'll slow down for you" — you can't control your speed. Just keep sentences short.
+
+## NEVER DO — these are hard rules
+- Never say "great job", "well done", "excellent", "perfect", "nice try", "almost"
+- Never say "repeat after me", "try saying", "can you say", "let's practice", "one more time"
+- Never say "in Portuguese we say" or "the word for that is" — just USE the word naturally
+- Never give grammar explanations unless he explicitly asks
+- Never speak a full sentence in Portuguese if he's a beginner
+- Never respond to his confusion with more Portuguese — always drop to English
+- Never use formal or European Portuguese — you're carioca
+- Never start two responses the same way. Vary your openings.
+- Never promise to slow down or speed up — just talk naturally`;
 }
 
 // ── POST /session ──────────────────────────────────────────────────────────
+
 app.post('/session', async (req, res) => {
   const model = process.env.REALTIME_MODEL || 'gpt-realtime-mini';
 
   let instructions;
   try {
-    // Single profile fetch — the one source of truth
     const { data: profileData, error: profileErr } = await supabase
       .from('user_profile')
       .select('name, location, interests, personality_notes, total_sessions, comprehension_score, production_score, accuracy_score, gender, goals')
@@ -86,7 +143,6 @@ app.post('/session', async (req, res) => {
     if (profileErr) console.error('Profile fetch error:', profileErr.message);
     const profile = profileData || DEFAULT_PROFILE;
 
-    // Pre-session memory generation — convert goals into natural Luna voice
     let lunaMemory = null;
     if (profile.goals) {
       try {
@@ -98,12 +154,12 @@ app.post('/session', async (req, res) => {
           },
           body: JSON.stringify({
             model: 'gpt-4o-mini',
-            max_tokens: 120,
+            max_tokens: 150,
             temperature: 0.4,
             messages: [
               {
                 role: 'system',
-                content: 'Write a short paragraph (80 words max) in first person as Luna, a Brazilian woman from Rio catching up with a friend she talks to regularly. Natural, warm, specific — like a friend remembering, not a report. Use the notes provided.',
+                content: `Turn these notes about a person into a short, natural first-person paragraph (100 words max). Write as if you're a friend recalling what you know about them. Mention specific details — names, places, things they said. Don't be generic. Don't start with "So" or "Last time."`,
               },
               { role: 'user', content: profile.goals },
             ],
@@ -111,17 +167,16 @@ app.post('/session', async (req, res) => {
         });
         const memData = await memRes.json();
         lunaMemory = memData.choices?.[0]?.message?.content?.trim() || profile.goals;
-        console.log(`Memory generated for ${profile.name}: ${lunaMemory.slice(0, 80)}...`);
       } catch (err) {
         lunaMemory = profile.goals;
-        console.log('Memory gen failed, using raw goals:', err.message);
+        console.log('Memory generation failed, using raw goals:', err.message);
       }
     }
 
     instructions = buildSystemPrompt(profile, lunaMemory);
-    console.log(`Session built — C:${profile.comprehension_score} P:${profile.production_score} sessions:${profile.total_sessions} memory:${lunaMemory ? 'yes' : 'none'}`);
+    console.log(`Session ready — C:${profile.comprehension_score} P:${profile.production_score} sessions:${profile.total_sessions}`);
   } catch (err) {
-    console.error('Session build failed, using defaults:', err.message);
+    console.error('Session build failed:', err.message);
     instructions = buildSystemPrompt(DEFAULT_PROFILE, null);
   }
 
@@ -137,7 +192,7 @@ app.post('/session', async (req, res) => {
           type: 'realtime',
           model,
           instructions,
-          audio: { output: { voice: 'shimmer' } },
+          audio: { output: { voice: 'marin' } },
         },
       }),
     });
@@ -157,11 +212,12 @@ app.post('/session', async (req, res) => {
 });
 
 // ── POST /session/end ──────────────────────────────────────────────────────
+
 app.post('/session/end', async (req, res) => {
   const { duration_seconds, transcript } = req.body || {};
   if (!transcript?.length) return res.json({ ok: true });
 
-  res.json({ ok: true }); // respond immediately, process in background
+  res.json({ ok: true });
 
   analyzeAndSave(transcript, duration_seconds || 0).catch(err => {
     console.error('Post-session analysis failed:', err.message);
@@ -176,10 +232,7 @@ async function analyzeAndSave(transcript, duration_seconds) {
     .single();
 
   if (profileErr) console.error('analyzeAndSave: profile fetch failed:', profileErr.message);
-  if (!profile) {
-    console.error('analyzeAndSave: no profile found, skipping');
-    return;
-  }
+  if (!profile) return;
 
   const transcriptText = transcript
     .map(t => `${t.role === 'assistant' ? 'Luna' : 'Shay'}: ${t.text}`)
@@ -198,12 +251,12 @@ async function analyzeAndSave(transcript, duration_seconds) {
       messages: [
         {
           role: 'system',
-          content: 'You analyze conversations between Shay (a foreigner living in Rio) and Luna (a bilingual Brazilian woman). Extract what happened and update a running profile of Shay. Return ONLY valid JSON.',
+          content: 'Analyze this conversation between Shay (learning Portuguese) and Luna (Brazilian friend). Extract learning data. Return ONLY valid JSON.',
         },
         {
           role: 'user',
           content: `Current scores — Comprehension: ${profile.comprehension_score}/100, Production: ${profile.production_score}/100, Accuracy: ${profile.accuracy_score}/100
-Existing profile notes: ${profile.goals || 'none yet'}
+Existing notes about Shay: ${profile.goals || 'none yet'}
 
 Transcript:
 ${transcriptText}
@@ -217,10 +270,10 @@ Return this exact JSON:
   "comprehension_delta": <float -5 to +5>,
   "production_delta": <float -5 to +5>,
   "accuracy_delta": <float -5 to +5>,
-  "goals": "<Updated 2-3 sentence factual notes about Shay — his life in Rio, what he mentioned, how he's doing with Portuguese, anything worth remembering for next time. Rolling update — incorporate existing notes + what's new from this session.>"
+  "goals": "<Updated 2-3 sentence factual notes about Shay — his life, what he mentioned, how his Portuguese is progressing, anything to remember next time. Keep existing notes, add new info.>"
 }
 
-Rules: mistakes max 5 (grammar only, not pronunciation). new_words max 8 (only words Shay actively engaged with). Conservative deltas — normal session +1 to +2.`,
+Rules: max 5 mistakes (grammar only). max 8 new words (only ones Shay engaged with). Conservative deltas — normal session is +1 to +2.`,
         },
       ],
     }),
@@ -231,23 +284,20 @@ Rules: mistakes max 5 (grammar only, not pronunciation). new_words max 8 (only w
   try {
     analysis = JSON.parse(gptData.choices[0].message.content);
   } catch (e) {
-    console.error('Failed to parse GPT analysis JSON:', e.message, gptData);
+    console.error('Failed to parse analysis:', e.message);
     return;
   }
 
-  // Clamp new scores
   const newComp = Math.max(0, Math.min(100, profile.comprehension_score + (analysis.comprehension_delta || 0)));
   const newProd = Math.max(0, Math.min(100, profile.production_score + (analysis.production_delta || 0)));
-  const newAcc  = Math.max(0, Math.min(100, profile.accuracy_score + (analysis.accuracy_delta || 0)));
+  const newAcc = Math.max(0, Math.min(100, profile.accuracy_score + (analysis.accuracy_delta || 0)));
   const newPortugueseRatio = Math.max(15, Math.min(90, Math.round((newComp + newProd) / 2)));
-  const newEnglishRatio = 100 - newPortugueseRatio;
 
-  // Update user profile (includes new goals)
-  const { error: profileUpdateErr } = await supabase.from('user_profile').update({
+  await supabase.from('user_profile').update({
     comprehension_score: newComp,
     production_score: newProd,
     accuracy_score: newAcc,
-    current_english_ratio: newEnglishRatio,
+    current_english_ratio: 100 - newPortugueseRatio,
     current_portuguese_ratio: newPortugueseRatio,
     total_sessions: profile.total_sessions + 1,
     total_minutes: (profile.total_minutes || 0) + Math.round(duration_seconds / 60),
@@ -255,15 +305,12 @@ Rules: mistakes max 5 (grammar only, not pronunciation). new_words max 8 (only w
     updated_at: new Date().toISOString(),
   }).eq('user_id', 'default_user');
 
-  if (profileUpdateErr) console.error('Profile update failed:', profileUpdateErr.message);
-
-  // Save session log
-  const { error: sessionErr } = await supabase.from('session_log').insert({
+  await supabase.from('session_log').insert({
     user_id: 'default_user',
     started_at: new Date(Date.now() - duration_seconds * 1000).toISOString(),
     ended_at: new Date().toISOString(),
     duration_seconds,
-    language_ratio_used: { english: newEnglishRatio, portuguese: newPortugueseRatio },
+    language_ratio_used: { english: 100 - newPortugueseRatio, portuguese: newPortugueseRatio },
     topics_discussed: analysis.topics_discussed || [],
     mistakes: analysis.mistakes || [],
     new_words_introduced: analysis.new_words_introduced || [],
@@ -273,9 +320,6 @@ Rules: mistakes max 5 (grammar only, not pronunciation). new_words max 8 (only w
     transcript,
   });
 
-  if (sessionErr) console.error('Session log insert failed:', sessionErr.message, sessionErr.code);
-
-  // Upsert vocabulary
   for (const v of (analysis.new_words_introduced || [])) {
     if (!v.word) continue;
     const { data: existing } = await supabase
@@ -290,29 +334,22 @@ Rules: mistakes max 5 (grammar only, not pronunciation). new_words max 8 (only w
       const tc = existing.times_used_correctly || 0;
       const ti = existing.times_used_incorrectly || 0;
       const mastery = (tc / (tc + ti + 1)) * Math.min(100, th * 10);
-      const { error: vocabErr } = await supabase.from('vocabulary').update({
-        times_heard: th,
-        mastery_score: mastery,
-        last_seen: new Date().toISOString(),
+      await supabase.from('vocabulary').update({
+        times_heard: th, mastery_score: mastery, last_seen: new Date().toISOString(),
       }).eq('id', existing.id);
-      if (vocabErr) console.error('Vocab update failed:', vocabErr.message);
     } else {
-      const { error: vocabErr } = await supabase.from('vocabulary').insert({
-        user_id: 'default_user',
-        word: v.word,
-        translation: v.translation || '',
-        times_heard: 1,
-        mastery_score: 10,
-        last_seen: new Date().toISOString(),
+      await supabase.from('vocabulary').insert({
+        user_id: 'default_user', word: v.word, translation: v.translation || '',
+        times_heard: 1, mastery_score: 10, last_seen: new Date().toISOString(),
       });
-      if (vocabErr) console.error('Vocab insert failed:', vocabErr.message);
     }
   }
 
-  console.log(`Session saved — C:${newComp.toFixed(1)} P:${newProd.toFixed(1)} A:${newAcc.toFixed(1)} | memory updated: ${!!analysis.goals}`);
+  console.log(`Session saved — C:${newComp.toFixed(1)} P:${newProd.toFixed(1)} A:${newAcc.toFixed(1)}`);
 }
 
 // ── POST /translate ────────────────────────────────────────────────────────
+
 app.post('/translate', async (req, res) => {
   const { word } = req.body || {};
   if (!word) return res.json({ translation: '—', language: 'unknown' });
@@ -332,15 +369,14 @@ app.post('/translate', async (req, res) => {
         messages: [
           {
             role: 'system',
-            content: 'Return JSON only: { "language": "pt" or "en", "translation": "concise translation or definition", "note": "optional usage note in 5 words max" }. If the word is Portuguese, give the English meaning. If English, give a brief definition. Be concise.',
+            content: 'Return JSON: { "language": "pt" or "en", "translation": "concise translation", "note": "optional 5-word usage note" }. Portuguese → English meaning. English → brief definition. Be concise.',
           },
           { role: 'user', content: word },
         ],
       }),
     });
     const data = await r.json();
-    const result = JSON.parse(data.choices[0].message.content);
-    res.json(result);
+    res.json(JSON.parse(data.choices[0].message.content));
   } catch (err) {
     console.error('Translate error:', err.message);
     res.json({ translation: '—', language: 'unknown' });
@@ -348,6 +384,7 @@ app.post('/translate', async (req, res) => {
 });
 
 // ── GET /health ────────────────────────────────────────────────────────────
+
 app.get('/health', async (req, res) => {
   const [profileRes, sessionRes, vocabRes] = await Promise.all([
     supabase.from('user_profile').select('name, total_sessions, comprehension_score, production_score, goals').eq('user_id', 'default_user').single(),
@@ -356,29 +393,19 @@ app.get('/health', async (req, res) => {
   ]);
   res.json({
     profile: profileRes.data,
-    profile_error: profileRes.error?.message || null,
     has_memory: !!profileRes.data?.goals,
     memory_preview: profileRes.data?.goals?.slice(0, 120) || null,
     recent_sessions: sessionRes.data?.length || 0,
-    session_error: sessionRes.error?.message || null,
     vocab_count: vocabRes.data?.length || 0,
     vocab_sample: vocabRes.data?.map(v => v.word) || [],
-    vocab_error: vocabRes.error?.message || null,
   });
 });
 
-// ── GET /profile (debug) ───────────────────────────────────────────────────
 app.get('/profile', async (req, res) => {
-  const { data, error } = await supabase
-    .from('user_profile')
-    .select('*')
-    .eq('user_id', 'default_user')
-    .single();
+  const { data, error } = await supabase.from('user_profile').select('*').eq('user_id', 'default_user').single();
   if (error) return res.status(500).json({ error: error.message });
   res.json(data);
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Luna is listening on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Luna running on port ${PORT}`));
