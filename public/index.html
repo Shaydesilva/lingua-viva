@@ -106,6 +106,8 @@
 
     .welcome{text-align:center;padding:40px 20px;color:var(--text3);font-size:14px;line-height:1.6}
     .welcome h2{font-family:'Instrument Serif',serif;font-size:28px;font-style:italic;color:var(--text);margin-bottom:8px;font-weight:400}
+    .welcome-link{display:inline-block;margin-top:16px;padding:8px 18px;border:1px solid var(--border);border-radius:10px;font-size:13px;color:var(--text2);text-decoration:none;transition:background .15s}
+    .welcome-link:active{background:var(--bg2)}
   </style>
 </head>
 <body>
@@ -118,7 +120,7 @@
       <div class="timer" id="tmr">0:00</div>
     </div>
   </header>
-  <div id="chat"><div class="welcome" id="welc"><h2>Oi</h2><p>Tap below to talk with Luna.<br>She'll chat in English with Portuguese woven in.<br>Tap any word to see what it means.</p></div></div>
+  <div id="chat"><div class="welcome" id="welc"><h2>Oi</h2><p>Tap below to talk with Luna.<br>She'll chat in English with Portuguese woven in.<br>Tap any word to see what it means.</p><a class="welcome-link" href="/interpret.html">🔄 Live Interpreter Mode</a></div></div>
   <div id="live"></div>
   <div id="sbar"><div class="dot" id="dot"></div><span id="stxt">Ready</span></div>
   <div id="ctrl">

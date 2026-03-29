@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="theme-color" content="#FAF7F2"/>
+  <title>Luna · Interpret</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--bg:#FAF7F2;--bg2:#F3EDE4;--card:#FFF;--border:#E8E0D4;--text:#2C2825;--text2:#7A7067;--text3:#A69E94;--accent:#C4654A;--accent-l:#F2DDD6;--pt:#B8860B;--pt-bg:#FDF6E3;--green:#5A8A6A;--green-l:#E8F0EB;--blue:#4A7CC4;--blue-l:#D6E4F2}
+    html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Source Sans 3',sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden}
+    #app{display:flex;flex-direction:column;height:100dvh;max-width:600px;margin:0 auto;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+
+    /* Header */
+    header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
+    .back{font-size:14px;color:var(--text3);text-decoration:none;display:flex;align-items:center;gap:4px;-webkit-tap-highlight-color:transparent}
+    .back:active{opacity:.5}
+    .title{font-family:'Instrument Serif',serif;font-size:20px;font-style:italic}
+    .mode-pill{display:flex;background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:2px}
+    .mode-opt{padding:4px 11px;border-radius:18px;font-size:11px;font-weight:600;color:var(--text3);cursor:pointer;transition:all .15s;-webkit-tap-highlight-color:transparent}
+    .mode-opt.on{background:var(--card);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+
+    /* Setup screen */
+    #setup{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px 24px;gap:20px}
+    #setup h2{font-family:'Instrument Serif',serif;font-size:26px;font-style:italic;font-weight:400;text-align:center}
+    #setup p{font-size:14px;color:var(--text3);text-align:center;line-height:1.5;max-width:300px}
+    .ctx-input{width:100%;max-width:320px;padding:12px 16px;border:1px solid var(--border);border-radius:12px;background:var(--card);font-family:inherit;font-size:14px;color:var(--text);outline:none;transition:border-color .15s}
+    .ctx-input:focus{border-color:var(--accent)}
+    .ctx-input::placeholder{color:var(--text3)}
+    .start-btn{width:100%;max-width:320px;padding:15px;border:none;border-radius:14px;background:var(--accent);color:#fff;font-family:inherit;font-size:16px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent;box-shadow:0 2px 12px rgba(196,101,74,.25);transition:transform .1s}
+    .start-btn:active{transform:scale(.97)}
+    .start-btn:disabled{opacity:.4}
+
+    /* Conversation split */
+    #conv{flex:1;display:none;flex-direction:column;overflow:hidden}
+
+    .half{flex:1;display:flex;flex-direction:column;overflow:hidden;position:relative}
+    .half-en{border-bottom:1px solid var(--border)}
+
+    .half-label{padding:8px 20px 4px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;flex-shrink:0}
+    .half-en .half-label{color:var(--blue)}
+    .half-pt .half-label{color:var(--pt)}
+
+    .half-lines{flex:1;overflow-y:auto;padding:4px 20px 12px;display:flex;flex-direction:column;gap:8px;-webkit-overflow-scrolling:touch}
+
+    .line{animation:fadeUp .2s ease}
+    .line-orig{font-size:15px;line-height:1.5}
+    .line-tl{font-size:13px;color:var(--text3);line-height:1.4;margin-top:1px;font-style:italic}
+
+    .half-en .line-orig{color:var(--text)}
+    .half-pt .line-orig{color:var(--pt)}
+
+    /* Tap zones (visible in tap mode) */
+    .tap-zone{display:none;position:absolute;inset:0;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .1s}
+    .tap-zone.show{display:block}
+    .tap-zone:active{background:rgba(0,0,0,.03)}
+    .tap-hint{position:absolute;bottom:12px;left:0;right:0;text-align:center;font-size:12px;color:var(--text3);pointer-events:none;opacity:0;transition:opacity .2s}
+    .tap-zone.show .tap-hint{opacity:1}
+
+    @keyframes fadeUp{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+    /* Status + controls */
+    #sbar{flex-shrink:0;padding:10px 20px;display:flex;align-items:center;gap:8px;border-top:1px solid var(--border)}
+    .dot{width:8px;height:8px;border-radius:50%;background:var(--text3);flex-shrink:0;transition:background .2s}
+    .dot.on{background:var(--green);animation:pulse 1.8s ease-in-out infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+    #stxt{font-size:13px;color:var(--text3);flex:1}
+    .end-btn{padding:8px 16px;border:1px solid var(--border);border-radius:10px;background:var(--bg2);font-family:inherit;font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;-webkit-tap-highlight-color:transparent}
+    .end-btn:active{opacity:.6}
+  </style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <a class="back" href="/">← Luna</a>
+    <div class="title">Interpret</div>
+    <div class="mode-pill" id="modePill">
+      <div class="mode-opt on" id="mAuto" onclick="setTapMode(false)">Auto</div>
+      <div class="mode-opt" id="mTap" onclick="setTapMode(true)">Tap</div>
+    </div>
+  </header>
+
+  <!-- Setup screen -->
+  <div id="setup">
+    <h2>Live Interpreter</h2>
+    <p>Luna will translate between you and a Portuguese speaker in real-time. Both of you will hear and see the translations.</p>
+    <input class="ctx-input" id="ctxInput" type="text" placeholder="Context? e.g. ordering at a restaurant (optional)"/>
+    <button class="start-btn" id="startBtn" onclick="startInterpret()">Start Interpreting</button>
+  </div>
+
+  <!-- Conversation view -->
+  <div id="conv">
+    <div class="half half-en">
+      <div class="half-label">English — You</div>
+      <div class="half-lines" id="enLines"></div>
+      <div class="tap-zone" id="tapEn" ontouchstart="tapStart('en',event)" ontouchend="tapEnd(event)" onmousedown="tapStart('en',event)" onmouseup="tapEnd(event)">
+        <div class="tap-hint">Tap & hold to speak English</div>
+      </div>
+    </div>
+    <div class="half half-pt">
+      <div class="half-label">Português — Them</div>
+      <div class="half-lines" id="ptLines"></div>
+      <div class="tap-zone" id="tapPt" ontouchstart="tapStart('pt',event)" ontouchend="tapEnd(event)" onmousedown="tapStart('pt',event)" onmouseup="tapEnd(event)">
+        <div class="tap-hint">Toque e segure para falar</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="sbar" style="display:none">
+    <div class="dot" id="dot"></div>
+    <span id="stxt">Listening…</span>
+    <button class="end-btn" onclick="endInterpret()">End</button>
+  </div>
+</div>
+
+<audio id="aud" autoplay playsinline></audio>
+
+<script>
+const PT_RE=/[ãõâêîôûçáéíóúàü]/i;
+const PT_WORDS=new Set(['tá','né','tô','cê','cara','gente','assim','então','tipo','nossa','oi','tchau','obrigado','obrigada','legal','saudade','carioca','boteco','praia','poxa','caramba','mano','beleza','valeu','falou','não','sim','muito','mais','para','com','uma','isso','bom','boa','bem','tudo','que','por','aqui','você','mas','cadê','também','quando','onde','como','porque','pô','firmeza','eu','ele','ela','nós','eles','esse','essa','ter','ser','estar','fazer','ir','vir','poder','querer','saber','falar','dizer','dar','ver','pegar','ficar','achar','chegar','deixar','passar','precisar','olhar']);
+
+function detectPt(text){
+  const words=text.toLowerCase().replace(/[.,!?;:'"()—-]/g,'').split(/\s+/);
+  let ptCount=0;
+  for(const w of words){if(PT_RE.test(w)||PT_WORDS.has(w))ptCount++}
+  return ptCount/Math.max(words.length,1)>0.3;
+}
+
+let pc=null,dc=null,stream=null,state='idle';
+let tapMode=false,currentLang=null;
+let lastInputText='',lastOutputText='';
+const $=id=>document.getElementById(id);
+
+function setTapMode(on){
+  tapMode=on;
+  $('mAuto').className='mode-opt'+(on?'':' on');
+  $('mTap').className='mode-opt'+(on?' on':'');
+  $('tapEn').className='tap-zone'+(on?' show':'');
+  $('tapPt').className='tap-zone'+(on?' show':'');
+  if(stream){
+    if(on){stream.getAudioTracks().forEach(t=>{t.enabled=false})}
+    else{stream.getAudioTracks().forEach(t=>{t.enabled=true})}
+  }
+}
+
+function tapStart(lang,e){
+  e.preventDefault();
+  if(!tapMode||!stream)return;
+  currentLang=lang;
+  stream.getAudioTracks().forEach(t=>{t.enabled=true});
+  if(lang==='en'){
+    $('tapEn').style.background='rgba(74,124,196,.06)';
+    $('stxt').textContent='Listening (English)…';
+  }else{
+    $('tapPt').style.background='rgba(184,134,11,.06)';
+    $('stxt').textContent='Ouvindo (Português)…';
+  }
+}
+
+function tapEnd(e){
+  e.preventDefault();
+  if(!tapMode||!stream)return;
+  stream.getAudioTracks().forEach(t=>{t.enabled=false});
+  $('tapEn').style.background='';
+  $('tapPt').style.background='';
+  $('stxt').textContent='Listening…';
+  currentLang=null;
+}
+
+function addLine(side,original,translation){
+  const container=side==='en'?$('enLines'):$('ptLines');
+  const line=document.createElement('div');
+  line.className='line';
+  line.innerHTML='<div class="line-orig">'+original+'</div>'+(translation?'<div class="line-tl">'+translation+'</div>':'');
+  container.appendChild(line);
+  container.scrollTop=container.scrollHeight;
+}
+
+function handleEvt(e){
+  if(!e||!e.type)return;
+  switch(e.type){
+    case 'conversation.item.input_audio_transcription.completed':{
+      const t=e.transcript?.trim();
+      if(!t)break;
+      lastInputText=t;
+      // Detect language and place on correct side
+      const isPt=tapMode?currentLang==='pt':detectPt(t);
+      if(isPt){
+        addLine('pt',t,null);
+      }else{
+        addLine('en',t,null);
+      }
+      $('stxt').textContent='Translating…';
+      $('dot').className='dot on';
+      break;
+    }
+    case 'response.output_audio_transcript.done':
+    case 'response.audio_transcript.done':{
+      const t=e.transcript?.trim();
+      if(!t)break;
+      lastOutputText=t;
+      // The output is the translation — figure out which side it goes on
+      // If input was English, output is Portuguese (goes on PT side as translation context)
+      // If input was Portuguese, output is English (goes on EN side as translation context)
+      const inputWasPt=tapMode?currentLang==='pt':detectPt(lastInputText);
+      if(inputWasPt){
+        // Input was PT, translation is EN — add English translation to the PT line
+        addLine('en',t,null);
+        // Update last PT line with translation
+        updateLastTranslation('pt',t);
+      }else{
+        // Input was EN, translation is PT — add to PT side
+        addLine('pt',t,null);
+        // Update last EN line with translation
+        updateLastTranslation('en',t);
+      }
+      $('stxt').textContent='Listening…';
+      $('dot').className='dot on';
+      break;
+    }
+    case 'response.output_audio_transcript.delta':
+    case 'response.audio_transcript.delta':
+      $('stxt').textContent='Speaking…';
+      break;
+    case 'response.done':
+      $('stxt').textContent='Listening…';
+      break;
+    case 'input_audio_buffer.speech_started':
+      $('stxt').textContent='Listening…';
+      $('dot').className='dot on';
+      break;
+    case 'error':
+      console.error('RT error:',e);
+      $('stxt').textContent=e.error?.message||'Error';
+      break;
+  }
+}
+
+function updateLastTranslation(side,text){
+  const container=side==='en'?$('enLines'):$('ptLines');
+  const lastLine=container.lastElementChild;
+  if(lastLine){
+    let tl=lastLine.querySelector('.line-tl');
+    if(!tl){
+      tl=document.createElement('div');
+      tl.className='line-tl';
+      lastLine.appendChild(tl);
+    }
+    tl.textContent=text;
+  }
+}
+
+async function startInterpret(){
+  const ctx=$('ctxInput').value.trim();
+  $('startBtn').disabled=true;
+  $('startBtn').textContent='Connecting…';
+
+  try{
+    const sr=await fetch('/session/interpret',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({context:ctx||null})
+    });
+    if(!sr.ok)throw new Error((await sr.json().catch(()=>({}))).error||'Server error');
+    const sd=await sr.json();
+    const key=sd.value;
+    if(!key)throw new Error('No key');
+
+    stream=await navigator.mediaDevices.getUserMedia({
+      audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}
+    });
+
+    pc=new RTCPeerConnection();
+    pc.ontrack=e=>{$('aud').srcObject=e.streams[0]};
+    stream.getTracks().forEach(t=>pc.addTrack(t,stream));
+    dc=pc.createDataChannel('oai-events');
+
+    dc.onopen=()=>{
+      state='live';
+      $('setup').style.display='none';
+      $('conv').style.display='flex';
+      $('sbar').style.display='flex';
+      $('dot').className='dot on';
+      $('stxt').textContent='Listening…';
+
+      dc.send(JSON.stringify({type:'session.update',session:{
+        type:'realtime',
+        turn_detection:{type:'semantic_vad',eagerness:'medium'},
+        input_audio_transcription:{model:'whisper-1'}
+      }}));
+
+      if(tapMode){stream.getAudioTracks().forEach(t=>{t.enabled=false})}
+    };
+
+    dc.onmessage=e=>{try{handleEvt(JSON.parse(e.data))}catch(err){console.error('Parse:',err.message)}};
+
+    const offer=await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    const model=sd.model||'gpt-realtime-mini';
+    const sdpR=await fetch(`https://api.openai.com/v1/realtime/calls?model=${encodeURIComponent(model)}`,{
+      method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/sdp'},body:offer.sdp
+    });
+    if(!sdpR.ok)throw new Error('SDP failed');
+    await pc.setRemoteDescription({type:'answer',sdp:await sdpR.text()});
+
+  }catch(err){
+    console.error('Start failed:',err);
+    $('startBtn').disabled=false;
+    $('startBtn').textContent='Start Interpreting';
+    alert('Connection failed: '+err.message);
+  }
+}
+
+function endInterpret(){
+  state='idle';
+  if(dc){try{dc.close()}catch{}dc=null}
+  if(pc){try{pc.close()}catch{}pc=null}
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
+  $('aud').srcObject=null;
+  $('conv').style.display='none';
+  $('sbar').style.display='none';
+  $('setup').style.display='flex';
+  $('startBtn').disabled=false;
+  $('startBtn').textContent='Start Interpreting';
+  $('enLines').innerHTML='';
+  $('ptLines').innerHTML='';
+  lastInputText='';lastOutputText='';
+}
+</script>
+</body>
+</html>
