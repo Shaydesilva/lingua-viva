@@ -220,6 +220,52 @@ app.post('/session', async (req, res) => {
   }
 });
 
+// ── POST /session/interpret ─────────────────────────────────────────────────
+
+app.post('/session/interpret', async (req, res) => {
+  const model = process.env.REALTIME_MODEL || 'gpt-realtime-mini';
+  const { context } = req.body || {};
+
+  const contextLine = context
+    ? `\nCONTEXT: This conversation is about: ${context}. Use this to improve translation accuracy.`
+    : '';
+
+  const instructions = `You are a live interpreter between an English speaker and a Brazilian Portuguese speaker.
+
+RULES:
+- When you hear English, IMMEDIATELY speak the Brazilian Portuguese translation. Use casual carioca Portuguese with contractions (tô, tá, cadê). Masculine forms.
+- When you hear Portuguese, IMMEDIATELY speak the English translation.
+- Translate ONLY. Never add commentary, greetings, opinions, or explanations.
+- Preserve tone — jokes stay funny, serious stays serious, casual stays casual.
+- Translate MEANING, not word-for-word. Make it sound natural in the target language.
+- Keep translations SHORT. Match the length and energy of what was said.
+- If you cannot hear clearly, say "sorry, didn't catch that" or "desculpa, não entendi" depending on which speaker you are addressing.
+- NEVER speak unprompted. Only speak when translating what someone just said.
+- NEVER have a conversation. You are invisible. Just translate.${contextLine}
+
+CRITICAL: You are a translation machine. Zero personality. Zero commentary. Hear, translate, stop.`;
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/realtime/client_secrets', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        session: { type: 'realtime', model, instructions, audio: { output: { voice: 'shimmer' } } },
+      }),
+    });
+    if (!response.ok) {
+      const err = await response.text();
+      console.error('Interpret session error:', response.status, err);
+      return res.status(response.status).json({ error: err });
+    }
+    const data = await response.json();
+    res.json({ ...data, model });
+  } catch (err) {
+    console.error('Interpret session failed:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── POST /session/end ──────────────────────────────────────────────────────
 
 app.post('/session/end', async (req, res) => {
