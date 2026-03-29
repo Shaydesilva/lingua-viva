@@ -287,14 +287,14 @@ async function startInterpret(){
 
       dc.send(JSON.stringify({type:'session.update',session:{
         type:'realtime',
-        turn_detection:{type:'semantic_vad',eagerness:'medium'},
+        turn_detection:{type:'server_vad',threshold:0.6,prefix_padding_ms:300,silence_duration_ms:800},
         input_audio_transcription:{model:'whisper-1'}
       }}));
 
       if(tapMode){stream.getAudioTracks().forEach(t=>{t.enabled=false})}
     };
 
-    dc.onmessage=e=>{try{handleEvt(JSON.parse(e.data))}catch(err){console.error('Parse:',err.message)}};
+    dc.onmessage=e=>{try{const evt=JSON.parse(e.data);if(evt.type==='error'){console.error('Session error:',JSON.stringify(evt));$('stxt').textContent=evt.error?.message||'Error'}else{handleEvt(evt)}}catch(err){console.error('Parse:',err.message)}};
 
     const offer=await pc.createOffer();
     await pc.setLocalDescription(offer);
