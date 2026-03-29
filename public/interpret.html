@@ -10,16 +10,15 @@
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    :root{--bg:#FAF7F2;--bg2:#F3EDE4;--card:#FFF;--border:#E8E0D4;--text:#2C2825;--text2:#7A7067;--text3:#A69E94;--accent:#C4654A;--accent-l:#F2DDD6;--pt:#B8860B;--pt-bg:#FDF6E3;--green:#5A8A6A;--green-l:#E8F0EB;--blue:#4A7CC4;--blue-l:#D6E4F2;--red:#C44A4A}
+    :root{--bg:#FAF7F2;--bg2:#F3EDE4;--card:#FFF;--border:#E8E0D4;--text:#2C2825;--text2:#7A7067;--text3:#A69E94;--accent:#C4654A;--accent-l:#F2DDD6;--pt:#B8860B;--pt-bg:#FDF6E3;--green:#5A8A6A;--green-l:#E8F0EB;--blue:#4A7CC4;--blue-l:#D6E4F2}
     html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Source Sans 3',sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden}
     #app{display:flex;flex-direction:column;height:100dvh;max-width:600px;margin:0 auto;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
 
     header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
     .back{font-size:14px;color:var(--text3);text-decoration:none;-webkit-tap-highlight-color:transparent}
-    .back:active{opacity:.5}
     .title{font-family:'Instrument Serif',serif;font-size:20px;font-style:italic}
     .mode-pill{display:flex;background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:2px}
-    .mode-opt{padding:4px 11px;border-radius:18px;font-size:11px;font-weight:600;color:var(--text3);cursor:pointer;transition:all .15s;-webkit-tap-highlight-color:transparent}
+    .mode-opt{padding:4px 11px;border-radius:18px;font-size:11px;font-weight:600;color:var(--text3);cursor:pointer;-webkit-tap-highlight-color:transparent}
     .mode-opt.on{background:var(--card);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.08)}
 
     #setup{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px 24px;gap:20px}
@@ -28,53 +27,55 @@
     .ctx-input{width:100%;max-width:320px;padding:12px 16px;border:1px solid var(--border);border-radius:12px;background:var(--card);font-family:inherit;font-size:14px;color:var(--text);outline:none}
     .ctx-input:focus{border-color:var(--accent)}
     .ctx-input::placeholder{color:var(--text3)}
-    .start-btn{width:100%;max-width:320px;padding:15px;border:none;border-radius:14px;background:var(--accent);color:#fff;font-family:inherit;font-size:16px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent;box-shadow:0 2px 12px rgba(196,101,74,.25)}
+    .start-btn{width:100%;max-width:320px;padding:15px;border:none;border-radius:14px;background:var(--accent);color:#fff;font-family:inherit;font-size:16px;font-weight:600;cursor:pointer;box-shadow:0 2px 12px rgba(196,101,74,.25);-webkit-tap-highlight-color:transparent}
     .start-btn:active{transform:scale(.97)}
     .start-btn:disabled{opacity:.4}
 
-    /* FIX 3: Conversation split — min-height:0 on halves for scroll to work */
     #conv{flex:1;display:none;flex-direction:column;overflow:hidden}
-    .half{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0;position:relative}
-    .half-en{border-bottom:1px solid var(--border)}
-    .half-label{padding:8px 20px 4px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;flex-shrink:0;z-index:2}
+
+    /* Each half: label + scrollable lines + optional tap bar */
+    .half{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+    .half-en{border-bottom:2px solid var(--border)}
+    .half-label{padding:8px 20px 4px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;flex-shrink:0}
     .half-en .half-label{color:var(--blue)}
     .half-pt .half-label{color:var(--pt)}
 
-    /* FIX 3: Lines container scrollable, pointer-events so tap-zone doesn't block */
-    .half-lines{flex:1;overflow-y:auto;padding:4px 20px 12px;display:flex;flex-direction:column;gap:8px;-webkit-overflow-scrolling:touch;min-height:0;z-index:1}
-    .line{animation:fadeUp .2s ease}
+    /* Scrollable lines area */
+    .half-lines{flex:1;overflow-y:auto;padding:4px 20px 8px;display:flex;flex-direction:column;gap:8px;-webkit-overflow-scrolling:touch;min-height:0}
+
+    .line{animation:fadeUp .15s ease}
     .line-orig{font-size:15px;line-height:1.5}
     .line-tl{font-size:13px;color:var(--text3);line-height:1.4;margin-top:1px;font-style:italic}
     .half-en .line-orig{color:var(--text)}
     .half-pt .line-orig{color:var(--pt)}
     @keyframes fadeUp{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 
-    /* FIX 3: Tap zones — only cover bottom portion, don't block scroll */
-    .tap-zone{display:none;position:absolute;bottom:0;left:0;right:0;height:54px;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .1s;z-index:3;background:var(--bg);border-top:1px solid var(--border);display:flex;align-items:center;justify-content:center}
-    .tap-zone{display:none}
-    .tap-zone.show{display:flex}
-    .tap-zone:active{background:var(--bg2)}
-    .tap-hint{font-size:13px;color:var(--text3);font-weight:500}
+    /* Tap bar — sits below the scroll area, doesn't overlap */
+    .tap-bar{display:none;flex-shrink:0;padding:10px 20px;border-top:1px solid var(--border);text-align:center;cursor:pointer;-webkit-tap-highlight-color:transparent;transition:background .1s;user-select:none;-webkit-user-select:none}
+    .tap-bar.show{display:block}
+    .tap-bar:active,.tap-bar.held{background:var(--bg2)}
+    .tap-bar span{font-size:13px;font-weight:500;color:var(--text3)}
+    .tap-bar.held span{color:var(--green)}
 
-    /* FIX 4: Visual banner for "didn't catch that" */
-    .banner{position:fixed;top:60px;left:16px;right:16px;max-width:568px;margin:0 auto;padding:10px 16px;background:var(--accent-l);border:1px solid var(--accent);border-radius:10px;text-align:center;font-size:13px;color:var(--accent);font-weight:500;z-index:50;opacity:0;transform:translateY(-10px);transition:all .2s ease;pointer-events:none}
+    /* Banner for errors */
+    .banner{position:fixed;top:60px;left:16px;right:16px;max-width:568px;margin:0 auto;padding:10px 16px;background:var(--accent-l);border:1px solid var(--accent);border-radius:10px;text-align:center;font-size:13px;color:var(--accent);font-weight:500;z-index:50;opacity:0;transform:translateY(-10px);transition:all .2s;pointer-events:none}
     .banner.show{opacity:1;transform:translateY(0)}
 
     #sbar{flex-shrink:0;padding:10px 20px;display:flex;align-items:center;gap:8px;border-top:1px solid var(--border)}
-    .dot{width:8px;height:8px;border-radius:50%;background:var(--text3);flex-shrink:0;transition:background .2s}
+    .dot{width:8px;height:8px;border-radius:50%;background:var(--text3);flex-shrink:0}
     .dot.on{background:var(--green);animation:pulse 1.8s ease-in-out infinite}
+    .dot.speak{background:var(--accent);animation:pulse .6s ease-in-out infinite}
     @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
     #stxt{font-size:13px;color:var(--text3);flex:1}
     .end-btn{padding:8px 16px;border:1px solid var(--border);border-radius:10px;background:var(--bg2);font-family:inherit;font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;-webkit-tap-highlight-color:transparent}
-    .end-btn:active{opacity:.6}
   </style>
 </head>
 <body>
 <div id="app">
   <header>
-    <a class="back" href="/">← Luna</a>
+    <a class="back" href="/">&#8592; Luna</a>
     <div class="title">Interpret</div>
-    <div class="mode-pill" id="modePill">
+    <div class="mode-pill">
       <div class="mode-opt on" id="mAuto" onclick="setTapMode(false)">Auto</div>
       <div class="mode-opt" id="mTap" onclick="setTapMode(true)">Tap</div>
     </div>
@@ -82,33 +83,33 @@
 
   <div id="setup">
     <h2>Live Interpreter</h2>
-    <p>Luna translates between you and a Portuguese speaker in real-time. Both of you will hear and see translations.</p>
-    <input class="ctx-input" id="ctxInput" type="text" placeholder="Context? e.g. ordering at a restaurant (optional)"/>
+    <p>Translates between you and a Portuguese speaker in real-time.</p>
+    <input class="ctx-input" id="ctxInput" type="text" placeholder="Context? e.g. ordering at a restaurant"/>
     <button class="start-btn" id="startBtn" onclick="startInterpret()">Start Interpreting</button>
   </div>
 
   <div id="conv">
     <div class="half half-en">
-      <div class="half-label">English — You</div>
+      <div class="half-label">English &#8212; You</div>
       <div class="half-lines" id="enLines"></div>
-      <div class="tap-zone" id="tapEn" ontouchstart="tapStart('en',event)" ontouchend="tapEnd(event)" onmousedown="tapStart('en',event)" onmouseup="tapEnd(event)">
-        <span class="tap-hint">Hold to speak English</span>
+      <div class="tap-bar" id="tapEn" ontouchstart="tapOn('en',event)" ontouchend="tapOff(event)" onmousedown="tapOn('en',event)" onmouseup="tapOff(event)">
+        <span>Hold to speak English</span>
       </div>
     </div>
     <div class="half half-pt">
-      <div class="half-label">Português — Them</div>
+      <div class="half-label">Portugu&#234;s &#8212; Them</div>
       <div class="half-lines" id="ptLines"></div>
-      <div class="tap-zone" id="tapPt" ontouchstart="tapStart('pt',event)" ontouchend="tapEnd(event)" onmousedown="tapStart('pt',event)" onmouseup="tapEnd(event)">
-        <span class="tap-hint">Segure para falar português</span>
+      <div class="tap-bar" id="tapPt" ontouchstart="tapOn('pt',event)" ontouchend="tapOff(event)" onmousedown="tapOn('pt',event)" onmouseup="tapOff(event)">
+        <span>Segure para falar</span>
       </div>
     </div>
   </div>
 
-  <div class="banner" id="banner">Couldn't hear clearly — please repeat</div>
+  <div class="banner" id="banner"></div>
 
   <div id="sbar" style="display:none">
     <div class="dot" id="dot"></div>
-    <span id="stxt">Listening…</span>
+    <span id="stxt">Listening...</span>
     <button class="end-btn" onclick="endInterpret()">End</button>
   </div>
 </div>
@@ -116,77 +117,89 @@
 <audio id="aud" autoplay playsinline></audio>
 
 <script>
-let pc=null,dc=null,stream=null,state='idle';
-let tapMode=false,currentTapLang=null;
+var pc=null,dc=null,stream=null,state='idle';
+var tapMode=false,currentTapLang=null;
+var lastInputSide=null;
+var modelSpeaking=false;
+var reinforceInt=null;
 
-// FIX 2: Simple turn tracking instead of unreliable language detection
-// We track: was the last thing we heard an INPUT (human speech) or OUTPUT (Luna translation)?
-// Input → goes on the appropriate side. Output → is the translation of the last input.
-let lastInputSide=null; // 'en' or 'pt' — which side the last human speech went to
-let expectingTranslation=false;
-let reinforceInt=null;
+function $(id){return document.getElementById(id)}
 
-const $=id=>document.getElementById(id);
+// ── Language detection (for auto mode input only) ──
+var PT_RE=/[ãõâêîôûçáéíóúàü]/i;
+var PT_WORDS=['tá','né','tô','cê','cara','gente','assim','então','tipo','nossa','oi','tchau','obrigado','legal','saudade','praia','poxa','beleza','valeu','falou','não','sim','muito','mais','uma','isso','bom','boa','bem','tudo','você','mas','cadê','também','porque','eu','ele','ela','esse','essa','fazer','querer','saber','falar','olhar','pode','preciso','acho','vamos','bora','pô','né','aqui','ali','lá','meu','minha','seu','sua','como','quando','onde','qual'];
+var PT_SET=new Set(PT_WORDS);
 
+function detectLang(text){
+  if(tapMode&&currentTapLang)return currentTapLang;
+  var words=text.toLowerCase().replace(/[.,!?;:'"()\-]/g,'').split(/\s+/).filter(Boolean);
+  var ptCount=0;
+  for(var i=0;i<words.length;i++){
+    if(PT_RE.test(words[i])||PT_SET.has(words[i]))ptCount++;
+  }
+  return (ptCount/Math.max(words.length,1))>0.3?'pt':'en';
+}
+
+// ── MIC CONTROL (critical for echo prevention) ──
+function muteMic(){
+  if(stream)stream.getAudioTracks().forEach(function(t){t.enabled=false});
+}
+function unmuteMic(){
+  // Only unmute if NOT in tap mode (in tap mode, mic is manually controlled)
+  if(stream&&!tapMode)stream.getAudioTracks().forEach(function(t){t.enabled=true});
+}
+
+// ── Mode switching ──
 function setTapMode(on){
   tapMode=on;
   $('mAuto').className='mode-opt'+(on?'':' on');
   $('mTap').className='mode-opt'+(on?' on':'');
-  $('tapEn').className='tap-zone'+(on?' show':'');
-  $('tapPt').className='tap-zone'+(on?' show':'');
+  $('tapEn').className='tap-bar'+(on?' show':'');
+  $('tapPt').className='tap-bar'+(on?' show':'');
   if(stream){
-    if(on){stream.getAudioTracks().forEach(t=>{t.enabled=false})}
-    else{stream.getAudioTracks().forEach(t=>{t.enabled=true})}
+    if(on){muteMic()}
+    else if(!modelSpeaking){unmuteMic()}
   }
 }
 
-function tapStart(lang,e){
+function tapOn(lang,e){
   e.preventDefault();
-  if(!tapMode||!stream)return;
+  if(!tapMode||!stream||modelSpeaking)return;
   currentTapLang=lang;
-  stream.getAudioTracks().forEach(t=>{t.enabled=true});
-  if(lang==='en'){
-    $('tapEn').style.background='var(--blue-l)';
-    $('stxt').textContent='Listening (English)…';
-  }else{
-    $('tapPt').style.background='var(--pt-bg)';
-    $('stxt').textContent='Ouvindo (Português)…';
-  }
+  stream.getAudioTracks().forEach(function(t){t.enabled=true});
+  var bar=lang==='en'?$('tapEn'):$('tapPt');
+  bar.classList.add('held');
+  $('stxt').textContent=lang==='en'?'Listening (English)...':'Ouvindo (Portugues)...';
 }
 
-function tapEnd(e){
+function tapOff(e){
   e.preventDefault();
   if(!tapMode||!stream)return;
-  stream.getAudioTracks().forEach(t=>{t.enabled=false});
-  $('tapEn').style.background='';
-  $('tapPt').style.background='';
-  $('stxt').textContent='Listening…';
+  muteMic();
+  $('tapEn').classList.remove('held');
+  $('tapPt').classList.remove('held');
+  $('stxt').textContent='Listening...';
   currentTapLang=null;
 }
 
-function addLine(side,original,translation){
-  const container=side==='en'?$('enLines'):$('ptLines');
-  const line=document.createElement('div');
+// ── Display ──
+function addLine(side,text){
+  var container=side==='en'?$('enLines'):$('ptLines');
+  var line=document.createElement('div');
   line.className='line';
-  const origDiv=document.createElement('div');
-  origDiv.className='line-orig';
-  origDiv.textContent=original;
-  line.appendChild(origDiv);
-  if(translation){
-    const tlDiv=document.createElement('div');
-    tlDiv.className='line-tl';
-    tlDiv.textContent=translation;
-    line.appendChild(tlDiv);
-  }
+  var orig=document.createElement('div');
+  orig.className='line-orig';
+  orig.textContent=text;
+  line.appendChild(orig);
   container.appendChild(line);
   container.scrollTop=container.scrollHeight;
 }
 
-function updateLastTranslation(side,text){
-  const container=side==='en'?$('enLines'):$('ptLines');
-  const lastLine=container.lastElementChild;
+function addTranslation(side,text){
+  var container=side==='en'?$('enLines'):$('ptLines');
+  var lastLine=container.lastElementChild;
   if(!lastLine)return;
-  let tl=lastLine.querySelector('.line-tl');
+  var tl=lastLine.querySelector('.line-tl');
   if(!tl){
     tl=document.createElement('div');
     tl.className='line-tl';
@@ -195,104 +208,89 @@ function updateLastTranslation(side,text){
   tl.textContent=text;
 }
 
-// FIX 4: Visual banner instead of model speaking
 function showBanner(msg){
-  const b=$('banner');
+  var b=$('banner');
   b.textContent=msg;
   b.classList.add('show');
-  setTimeout(()=>{b.classList.remove('show')},3000);
+  setTimeout(function(){b.classList.remove('show')},3000);
 }
 
-// FIX 2: Detect which side input belongs to
-// In auto mode: use simple heuristic — if >30% of words have PT characters/are PT words, it's PT
-// But ONLY for input transcriptions, never for model output
-const PT_RE=/[ãõâêîôûçáéíóúàü]/i;
-const PT_WORDS=new Set(['tá','né','tô','cê','cara','gente','assim','então','tipo','nossa','oi','tchau','obrigado','legal','saudade','praia','poxa','caramba','mano','beleza','valeu','falou','não','sim','muito','mais','uma','isso','bom','boa','bem','tudo','você','mas','cadê','também','porque','pô','eu','ele','ela','nós','eles','esse','essa','fazer','querer','saber','falar','olhar','pode','preciso','acho','vamos','bora']);
-
-function detectInputLang(text){
-  if(tapMode&&currentTapLang)return currentTapLang;
-  const words=text.toLowerCase().replace(/[.,!?;:'"()—-]/g,'').split(/\s+/).filter(Boolean);
-  let ptCount=0;
-  for(const w of words){if(PT_RE.test(w)||PT_WORDS.has(w))ptCount++}
-  return (ptCount/Math.max(words.length,1))>0.35?'pt':'en';
-}
-
+// ── Event handler ──
 function handleEvt(e){
   if(!e||!e.type)return;
   switch(e.type){
 
-    // Human spoke — this is INPUT
-    case 'conversation.item.input_audio_transcription.completed':{
-      const t=e.transcript?.trim();
+    // Human spoke — INPUT
+    case 'conversation.item.input_audio_transcription.completed':
+      var t=e.transcript?e.transcript.trim():'';
       if(!t)break;
-      
-      // Determine which side
-      lastInputSide=detectInputLang(t);
-      expectingTranslation=true;
-      
-      // Add to the correct side
-      addLine(lastInputSide,t,null);
-      
-      $('stxt').textContent='Translating…';
-      break;
-    }
 
-    // Luna spoke — this is the TRANSLATION of the last input
-    case 'response.output_audio_transcript.done':
-    case 'response.audio_transcript.done':{
-      const t=e.transcript?.trim();
-      if(!t)break;
-      
-      if(expectingTranslation&&lastInputSide){
-        // Translation goes on the OPPOSITE side from the input
-        const translationSide=lastInputSide==='en'?'pt':'en';
-        addLine(translationSide,t,null);
-        // Also show as subtitle on the input side
-        updateLastTranslation(lastInputSide,t);
-      }else{
-        // Fallback — just add to EN side
-        addLine('en',t,null);
-      }
-      
-      expectingTranslation=false;
-      $('stxt').textContent='Listening…';
+      // Determine which side this input goes on
+      lastInputSide=detectLang(t);
+      addLine(lastInputSide,t);
+      $('stxt').textContent='Translating...';
       break;
-    }
 
+    // Model starting to speak — MUTE MIC to prevent echo
+    case 'response.audio.delta':
     case 'response.output_audio_transcript.delta':
     case 'response.audio_transcript.delta':
-      $('stxt').textContent='Translating…';
+      if(!modelSpeaking){
+        modelSpeaking=true;
+        muteMic();
+        $('dot').className='dot speak';
+        $('stxt').textContent='Translating...';
+      }
       break;
 
+    // Model finished speaking — output transcript complete
+    case 'response.output_audio_transcript.done':
+    case 'response.audio_transcript.done':
+      var out=e.transcript?e.transcript.trim():'';
+      if(out&&lastInputSide){
+        var translationSide=lastInputSide==='en'?'pt':'en';
+        addLine(translationSide,out);
+        addTranslation(lastInputSide,out);
+      }
+      break;
+
+    // Response fully done — UNMUTE MIC
     case 'response.done':
-      $('stxt').textContent='Listening…';
+      modelSpeaking=false;
+      $('dot').className='dot on';
+      $('stxt').textContent='Listening...';
+      // Small delay before unmuting to let audio finish playing
+      setTimeout(function(){
+        if(!modelSpeaking)unmuteMic();
+      },300);
       break;
 
     case 'input_audio_buffer.speech_started':
-      $('stxt').textContent='Listening…';
       $('dot').className='dot on';
+      $('stxt').textContent='Listening...';
       break;
 
     case 'error':
       console.error('RT error:',e);
-      $('stxt').textContent='Error — try again';
+      showBanner('Didn\'t catch that - please repeat');
       break;
   }
 }
 
+// ── Session ──
 async function startInterpret(){
-  const ctx=$('ctxInput').value.trim();
+  var ctx=$('ctxInput').value.trim();
   $('startBtn').disabled=true;
-  $('startBtn').textContent='Connecting…';
+  $('startBtn').textContent='Connecting...';
 
   try{
-    const sr=await fetch('/session/interpret',{
+    var sr=await fetch('/session/interpret',{
       method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({context:ctx||null})
     });
-    if(!sr.ok)throw new Error((await sr.json().catch(()=>({}))).error||'Server error');
-    const sd=await sr.json();
-    const key=sd.value;
+    if(!sr.ok)throw new Error((await sr.json().catch(function(){return{}})).error||'Server error');
+    var sd=await sr.json();
+    var key=sd.value;
     if(!key)throw new Error('No key');
 
     stream=await navigator.mediaDevices.getUserMedia({
@@ -300,55 +298,48 @@ async function startInterpret(){
     });
 
     pc=new RTCPeerConnection();
-    pc.ontrack=e=>{$('aud').srcObject=e.streams[0]};
-    stream.getTracks().forEach(t=>pc.addTrack(t,stream));
+    pc.ontrack=function(e){$('aud').srcObject=e.streams[0]};
+    stream.getTracks().forEach(function(t){pc.addTrack(t,stream)});
     dc=pc.createDataChannel('oai-events');
 
-    dc.onopen=()=>{
+    dc.onopen=function(){
       state='live';
       $('setup').style.display='none';
       $('conv').style.display='flex';
       $('sbar').style.display='flex';
       $('dot').className='dot on';
-      $('stxt').textContent='Listening…';
+      $('stxt').textContent='Listening...';
 
       dc.send(JSON.stringify({type:'session.update',session:{
         type:'realtime',
-        turn_detection:{type:'server_vad',threshold:0.6,prefix_padding_ms:300,silence_duration_ms:800},
+        turn_detection:{type:'server_vad',threshold:0.7,prefix_padding_ms:300,silence_duration_ms:1000},
         input_audio_transcription:{model:'whisper-1'}
       }}));
 
-      if(tapMode){stream.getAudioTracks().forEach(t=>{t.enabled=false})}
+      // In tap mode, mic starts muted
+      if(tapMode){muteMic()}
 
-      // FIX 1: Periodic reinforcement — remind model it's an interpreter every 30 seconds
-      reinforceInt=setInterval(()=>{
+      // Reinforcement every 30s to prevent chatbot drift
+      reinforceInt=setInterval(function(){
         if(dc&&dc.readyState==='open'){
           dc.send(JSON.stringify({type:'conversation.item.create',item:{
             type:'message',role:'system',
-            content:[{type:'input_text',text:'You are an interpreter. Translate only. Never respond as a chatbot. Never give opinions. Never express concern. Never refuse to translate. Just translate what was said, exactly, into the other language. If you cannot hear, stay silent.'}]
+            content:[{type:'input_text',text:'REMINDER: You are an interpreter. Translate only. Do not respond as a chatbot. Do not answer questions. Do not give opinions. Do not express concern. If you cannot hear, stay silent. Translate what is said, nothing more.'}]
           }}));
         }
       },30000);
     };
 
-    dc.onmessage=e=>{
-      try{
-        const evt=JSON.parse(e.data);
-        if(evt.type==='error'){
-          console.error('Session error:',JSON.stringify(evt));
-          // FIX 4: If error mentions unclear audio, show banner not voice
-          showBanner('Couldn\'t hear clearly — please repeat');
-        }else{
-          handleEvt(evt);
-        }
-      }catch(err){console.error('Parse:',err.message)}
+    dc.onmessage=function(e){
+      try{handleEvt(JSON.parse(e.data))}
+      catch(err){console.error('Parse:',err.message)}
     };
 
-    const offer=await pc.createOffer();
+    var offer=await pc.createOffer();
     await pc.setLocalDescription(offer);
-    const model=sd.model||'gpt-realtime-mini';
-    const sdpR=await fetch(`https://api.openai.com/v1/realtime/calls?model=${encodeURIComponent(model)}`,{
-      method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/sdp'},body:offer.sdp
+    var model=sd.model||'gpt-realtime-mini';
+    var sdpR=await fetch('https://api.openai.com/v1/realtime/calls?model='+encodeURIComponent(model),{
+      method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/sdp'},body:offer.sdp
     });
     if(!sdpR.ok)throw new Error('SDP failed');
     await pc.setRemoteDescription({type:'answer',sdp:await sdpR.text()});
@@ -363,10 +354,11 @@ async function startInterpret(){
 
 function endInterpret(){
   state='idle';
+  modelSpeaking=false;
   clearInterval(reinforceInt);
-  if(dc){try{dc.close()}catch{}dc=null}
-  if(pc){try{pc.close()}catch{}pc=null}
-  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
+  if(dc){try{dc.close()}catch(e){}dc=null}
+  if(pc){try{pc.close()}catch(e){}pc=null}
+  if(stream){stream.getTracks().forEach(function(t){t.stop()});stream=null}
   $('aud').srcObject=null;
   $('conv').style.display='none';
   $('sbar').style.display='none';
@@ -375,7 +367,7 @@ function endInterpret(){
   $('startBtn').textContent='Start Interpreting';
   $('enLines').innerHTML='';
   $('ptLines').innerHTML='';
-  lastInputSide=null;expectingTranslation=false;
+  lastInputSide=null;
 }
 </script>
 </body>
