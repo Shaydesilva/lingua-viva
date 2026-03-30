@@ -44,7 +44,6 @@
     .half-pt .line-orig{color:var(--pt)}
     @keyframes fadeUp{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 
-    /* Tap bars sit below scroll, never overlap */
     .tap-bar{display:none;flex-shrink:0;padding:12px 20px;border-top:1px solid var(--border);text-align:center;cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
     .tap-bar.show{display:block}
     .tap-bar span{font-size:13px;font-weight:500;color:var(--text3)}
@@ -108,12 +107,10 @@
 var pc=null,dc=null,stream=null,state='idle';
 var tapMode=false,currentTapLang=null;
 var lastInputSide=null;
-var micMuted=false;
 var reinforceInt=null;
 
 function $(id){return document.getElementById(id)}
 
-// Language detection
 var PT_RE=/[ãõâêîôûçáéíóúàü]/i;
 var PT_SET=new Set(['tá','né','tô','cê','cara','gente','assim','então','tipo','nossa','oi','tchau','obrigado','legal','saudade','praia','poxa','beleza','valeu','falou','não','sim','muito','mais','uma','isso','bom','boa','bem','tudo','você','mas','cadê','também','porque','eu','ele','ela','esse','essa','fazer','querer','saber','falar','olhar','pode','preciso','acho','vamos','bora','pô','aqui','ali','lá','meu','minha','como','quando','onde','qual']);
 
@@ -121,51 +118,39 @@ function detectLang(text){
   if(tapMode&&currentTapLang)return currentTapLang;
   var words=text.toLowerCase().replace(/[.,!?;:'"()\-]/g,'').split(/\s+/).filter(Boolean);
   var ptCount=0;
-  for(var i=0;i<words.length;i++){
-    if(PT_RE.test(words[i])||PT_SET.has(words[i]))ptCount++;
-  }
+  for(var i=0;i<words.length;i++){if(PT_RE.test(words[i])||PT_SET.has(words[i]))ptCount++}
   return (ptCount/Math.max(words.length,1))>0.3?'pt':'en';
 }
 
-// Mic control
-function muteMic(){
-  if(stream&&!micMuted){stream.getAudioTracks().forEach(function(t){t.enabled=false});micMuted=true}
-}
-function unmuteMic(){
-  if(stream&&micMuted&&!tapMode){stream.getAudioTracks().forEach(function(t){t.enabled=true});micMuted=false}
-}
-
-// Mode
+// ── Mode ──
 function setTapMode(on){
   tapMode=on;
   $('mAuto').className='mode-opt'+(on?'':' on');
   $('mTap').className='mode-opt'+(on?' on':'');
   $('tapEn').className='tap-bar'+(on?' show':'');
   $('tapPt').className='tap-bar'+(on?' show':'');
-  if(stream){
-    if(on){muteMic()}
-    else{micMuted=true;unmuteMic()}
-  }
+  // In tap mode, mic off by default. In auto mode, mic always on.
+  if(stream){stream.getAudioTracks().forEach(function(t){t.enabled=!on})}
 }
 
 function tapOn(lang,e){
   e.preventDefault();
   if(!tapMode||!stream)return;
   currentTapLang=lang;
-  stream.getAudioTracks().forEach(function(t){t.enabled=true});micMuted=false;
+  stream.getAudioTracks().forEach(function(t){t.enabled=true});
   (lang==='en'?$('tapEn'):$('tapPt')).classList.add('held');
   $('stxt').textContent=lang==='en'?'Listening (English)...':'Ouvindo (Portugues)...';
 }
 function tapOff(e){
   e.preventDefault();
   if(!tapMode||!stream)return;
-  muteMic();
+  stream.getAudioTracks().forEach(function(t){t.enabled=false});
   $('tapEn').classList.remove('held');
   $('tapPt').classList.remove('held');
   $('stxt').textContent='Listening...';
 }
 
-// Display
+// ── Display ──
 function addLine(side,text){
   var c=side==='en'?$('enLines'):$('ptLines');
   var d=document.createElement('div');d.className='line';
@@ -184,36 +169,23 @@ function showBanner(msg){
   setTimeout(function(){$('banner').classList.remove('show')},3000);
 }
 
-// Inject translate instruction before model responds
-function injectTranslateReminder(){
-  if(dc&&dc.readyState==='open'){
-    dc.send(JSON.stringify({type:'conversation.item.create',item:{
-      type:'message',role:'system',
-      content:[{type:'input_text',text:'TRANSLATE the speech you just heard into the other language. Do NOT respond. Do NOT answer. Do NOT comment. ONLY output the translation. If unclear, say nothing.'}]
-    }}));
-  }
-}
+// ── Events ──
+var modelTalking=false;
 
-// Events
 function handleEvt(e){
   if(!e||!e.type)return;
-
   switch(e.type){
-
-    // User stopped speaking — model is about to respond
-    // THIS is where we: 1) mute mic 2) inject translate reminder
-    case 'input_audio_buffer.speech_stopped':
-      muteMic();
-      injectTranslateReminder();
-      $('stxt').textContent='Translating...';
-      break;
 
     case 'input_audio_buffer.speech_started':
       $('dot').className='dot on';
       $('stxt').textContent='Listening...';
       break;
 
-    // User's speech transcribed — display on correct side
+    case 'input_audio_buffer.speech_stopped':
+      $('stxt').textContent='Translating...';
+      break;
+
+    // Human speech transcribed — put on correct side
     case 'conversation.item.input_audio_transcription.completed':
       var it=e.transcript?e.transcript.trim():'';
       if(!it)break;
@@ -221,12 +193,16 @@ function handleEvt(e){
       addLine(lastInputSide,it);
       break;
 
-    // Model's translation text streaming in (delta) — no action needed on delta
+    // Model starting to speak translation — mute mic to prevent echo
     case 'response.output_audio_transcript.delta':
     case 'response.audio_transcript.delta':
+      if(!modelTalking){
+        modelTalking=true;
+        if(!tapMode&&stream){stream.getAudioTracks().forEach(function(t){t.enabled=false})}
+      }
       break;
 
-    // Model's translation complete — display on opposite side
+    // Model translation complete — put on opposite side + subtitle
     case 'response.output_audio_transcript.done':
     case 'response.audio_transcript.done':
       var ot=e.transcript?e.transcript.trim():'';
@@ -235,31 +211,34 @@ function handleEvt(e){
         var tSide=lastInputSide==='en'?'pt':'en';
         addLine(tSide,ot);
         addSub(lastInputSide,ot);
-      }else{
-        // Fallback — don't know which side, just put in EN
-        addLine('en',ot);
       }
+      $('stxt').textContent='Listening...';
       break;
 
-    // Model fully done — unmute mic after a short delay for audio to finish playing
+    // Response fully done — unmute mic after audio finishes playing
     case 'response.done':
-      $('stxt').textContent='Listening...';
       $('dot').className='dot on';
-      setTimeout(function(){
-        if(state==='live')unmuteMic();
-      },400);
+      $('stxt').textContent='Listening...';
+      modelTalking=false;
+      if(!tapMode&&stream){
+        setTimeout(function(){
+          if(state==='live'&&!tapMode&&!modelTalking){
+            stream.getAudioTracks().forEach(function(t){t.enabled=true});
+          }
+        },400);
+      }
       break;
 
     case 'error':
       console.error('RT error:',JSON.stringify(e));
       showBanner('Didn\'t catch that — please repeat');
-      // Make sure mic gets unmuted on error
-      setTimeout(function(){if(state==='live')unmuteMic()},500);
+      modelTalking=false;
+      if(!tapMode&&stream){stream.getAudioTracks().forEach(function(t){t.enabled=true})}
       break;
   }
 }
 
-// Session
+// ── Session ──
 async function startInterpret(){
   var ctx=$('ctxInput').value.trim();
   $('startBtn').disabled=true;
@@ -291,7 +270,6 @@ async function startInterpret(){
       $('sbar').style.display='flex';
       $('dot').className='dot on';
       $('stxt').textContent='Listening...';
-      micMuted=false;
 
       dc.send(JSON.stringify({type:'session.update',session:{
         type:'realtime',
@@ -299,14 +277,15 @@ async function startInterpret(){
         input_audio_transcription:{model:'whisper-1'}
       }}));
 
-      if(tapMode){muteMic()}
+      // Tap mode: mic starts off. Auto mode: mic stays on.
+      if(tapMode){stream.getAudioTracks().forEach(function(t){t.enabled=false})}
 
       // Reinforcement every 30s
       reinforceInt=setInterval(function(){
         if(dc&&dc.readyState==='open'){
           dc.send(JSON.stringify({type:'conversation.item.create',item:{
             type:'message',role:'system',
-            content:[{type:'input_text',text:'You are an interpreter. Translate only. Never respond as a chatbot. Never answer questions. Never give opinions or concern. If unclear, stay silent.'}]
+            content:[{type:'input_text',text:'You are an interpreter. Translate only. Never respond as a chatbot. Never answer questions. Never give opinions. Never express concern. If you cannot hear, stay silent. Translate what was said, nothing more.'}]
           }}));
         }
       },30000);
@@ -335,7 +314,7 @@ async function startInterpret(){
 }
 
 function endInterpret(){
-  state='idle';micMuted=false;
+  state='idle';
   clearInterval(reinforceInt);
   if(dc){try{dc.close()}catch(e){}dc=null}
   if(pc){try{pc.close()}catch(e){}pc=null}
