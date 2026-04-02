@@ -104,15 +104,27 @@
     .tl-text{display:none;font-size:13px;color:var(--text2);background:var(--bg2);border-radius:10px;padding:7px 11px;margin-top:3px;line-height:1.4}
     .tl-text.on{display:block;animation:fadeUp .15s ease}
 
-    /* Self-assessment */
-    #assess{position:fixed;bottom:80px;left:16px;right:16px;max-width:568px;margin:0 auto;text-align:center;z-index:40;display:none}
-    #assess.show{display:block;animation:fadeUp .2s ease}
-    .sa-word{font-size:13px;color:var(--pt);font-style:italic;margin-bottom:6px}
+    /* Self-assessment — inline in chat */
+    .sa-card{max-width:88%;align-self:center;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px 16px;text-align:center;animation:fadeUp .25s ease}
+    .sa-prompt{font-size:14px;color:var(--pt);font-weight:600;margin-bottom:2px}
+    .sa-trans{font-size:12px;color:var(--text3);margin-bottom:10px}
     .sa-btns{display:flex;gap:10px;justify-content:center}
-    .sa-btn{padding:10px 24px;border-radius:12px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;border:none;-webkit-tap-highlight-color:transparent}
-    .sa-btn:active{transform:scale(.95)}
+    .sa-btn{padding:10px 22px;border-radius:12px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;border:none;-webkit-tap-highlight-color:transparent;transition:transform .1s}
+    .sa-btn:active{transform:scale(.92)}
     .sa-got{background:var(--green-l);color:var(--green)}
     .sa-wip{background:#FFF3E0;color:#E6A817}
+
+    /* Feedback card after assessment */
+    .sa-result{max-width:88%;align-self:center;padding:10px 16px;border-radius:12px;text-align:center;font-size:13px;font-weight:600;animation:resultPop .3s ease}
+    .sa-result.got{background:var(--green-l);color:var(--green)}
+    .sa-result.wip{background:#FFF3E0;color:#E6A817}
+    .sa-result .sa-detail{font-size:11px;font-weight:400;margin-top:2px;opacity:.8}
+    @keyframes resultPop{0%{opacity:0;transform:scale(.9)}50%{transform:scale(1.03)}100%{opacity:1;transform:scale(1)}}
+
+    /* Confetti burst */
+    .confetti{position:fixed;pointer-events:none;z-index:100}
+    .confetti-piece{position:absolute;width:6px;height:6px;border-radius:50%;animation:confettiFall .8s ease-out forwards}
+    @keyframes confettiFall{0%{opacity:1;transform:translate(0,0) scale(1)}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(0)}}
 
     .welcome{text-align:center;padding:40px 20px;color:var(--text3);font-size:14px;line-height:1.6}
     .welcome h2{font-family:'Instrument Serif',serif;font-size:28px;font-style:italic;color:var(--text);margin-bottom:8px;font-weight:400}
@@ -132,7 +144,6 @@
   </header>
   <div id="chat"><div class="welcome" id="welc"><h2>Oi</h2><p>Tap below to talk with Luna.<br>She'll chat in English with Portuguese woven in.<br>Tap any word to see what it means.</p><a class="welcome-link" href="/">&#8592; Home</a></div></div>
   <div id="live"></div>
-  <div id="assess"><div class="sa-word" id="saWord"></div><div class="sa-btns"><button class="sa-btn sa-got" onclick="saGot()">&#10003; Got it</button><button class="sa-btn sa-wip" onclick="saWip()">&#9684; Working on it</button></div></div>
   <div id="sbar"><div class="dot" id="dot"></div><span id="stxt">Ready</span></div>
   <div id="ctrl">
     <button class="btn btn-go" id="mbtn" onclick="go()">Start talking</button>
@@ -209,45 +220,124 @@ function startRein(){reinI=setInterval(()=>{if(dc?.readyState==='open')dc.send(J
 const CTX_MAP={'restaurant|food|eat|hungry|dinner|lunch|breakfast':['conta','garçom','cardápio','fome','gostoso','almoço','jantar'],'beach|surf|copacabana|ipanema|sand|ocean|swim':['praia','calor','sol'],'money|pay|expensive|cheap|buy|price':['dinheiro','caro','barato','cartão','troco','quanto custa'],'drink|beer|bar|coffee|water|thirsty':['cerveja','café','água','sede','boteco'],'tired|sleep|hot|cold|weather':['cansado','calor','frio','chuva','sol']};
 function checkCtx(txt){const lo=txt.toLowerCase();for(const[kw,words]of Object.entries(CTX_MAP)){if(kw.split('|').some(k=>lo.includes(k))){const rev=words.filter(w=>vocabMap[w]&&vocabMap[w]<90);if(rev.length&&dc?.readyState==='open'){dc.send(JSON.stringify({type:'conversation.item.create',item:{type:'message',role:'system',content:[{type:'input_text',text:`He's talking about ${kw.split('|')[0]}. Words you've used before: ${rev.join(', ')}. Work them in.`}]}}));return}}}}
 
-// Self-assessment
-let lastLunaPtWords=[],saActiveWord=null,saTimer=null;
+// Self-assessment — inline in chat feed
+let lastLunaPtWords=[],saActiveWord=null,saActiveEl=null,saTimer=null;
 
 function extractPtWords(text){
   return text.split(/\s+/).map(w=>w.toLowerCase().replace(/[.,!?;:'"()—-]/g,'')).filter(w=>w&&isPt(w));
+}
+
+// Sound synthesis via Web Audio API
+let audioCtx=null;
+function getAudio(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx}
+function playTone(freq,dur,type,vol){
+  try{const a=getAudio(),o=a.createOscillator(),g=a.createGain();o.type=type||'sine';o.frequency.value=freq;g.gain.value=vol||0.15;g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+dur);o.connect(g);g.connect(a.destination);o.start();o.stop(a.currentTime+dur)}catch(e){}
+}
+function sndGot(){playTone(523,.1,'sine',.12);setTimeout(()=>playTone(659,.15,'sine',.12),100)}
+function sndWip(){playTone(392,.2,'sine',.08)}
+function sndClick(){playTone(800,.04,'square',.05)}
+function sndComplete(){playTone(523,.12,'sine',.1);setTimeout(()=>playTone(659,.12,'sine',.1),120);setTimeout(()=>playTone(784,.2,'sine',.1),240)}
+
+// Haptics
+function haptic(style){try{if(navigator.vibrate){navigator.vibrate(style==='heavy'?[30]:style==='light'?[10]:[15])}}catch(e){}}
+
+// Confetti burst
+function confetti(x,y,color){
+  const c=document.createElement('div');c.className='confetti';c.style.left=x+'px';c.style.top=y+'px';
+  const colors=color==='green'?['#5A8A6A','#7BC47F','#A8E6A1','#E8F0EB']:['#E6A817','#F5D76E','#FFE8A0','#FFF3E0'];
+  for(let i=0;i<8;i++){const p=document.createElement('div');p.className='confetti-piece';const angle=Math.random()*Math.PI*2;const dist=30+Math.random()*40;p.style.setProperty('--dx',Math.cos(angle)*dist+'px');p.style.setProperty('--dy',Math.sin(angle)*dist+'px');p.style.background=colors[i%colors.length];p.style.left=Math.random()*10-5+'px';p.style.top=Math.random()*10-5+'px';c.appendChild(p)}
+  document.body.appendChild(c);setTimeout(()=>c.remove(),900);
 }
 
 function checkSelfAssess(userText){
   if(!lastLunaPtWords.length)return;
   const userWords=userText.toLowerCase().split(/\s+/).map(w=>w.replace(/[.,!?;:'"()—-]/g,''));
   for(const pw of lastLunaPtWords){
-    if(userWords.some(uw=>{
+    const matched=userWords.some(uw=>{
       if(uw===pw)return true;
-      // Fuzzy: allow 2 char difference for short words
       if(pw.length<4)return false;
-      let diff=0;const a=uw,b=pw;if(Math.abs(a.length-b.length)>2)return false;
-      for(let i=0;i<Math.min(a.length,b.length);i++){if(a[i]!==b[i])diff++}
+      if(Math.abs(uw.length-pw.length)>2)return false;
+      let diff=0;for(let i=0;i<Math.min(uw.length,pw.length);i++){if(uw[i]!==pw[i])diff++}
       return diff<=2;
-    })){
-      saActiveWord=pw;
-      $('saWord').textContent=pw;
-      $('assess').className='show';
-      $('assess').style.display='block';
-      clearTimeout(saTimer);
-      saTimer=setTimeout(hideSa,8000);
+    });
+    if(matched){
+      showInlineAssess(pw);
       return;
     }
   }
 }
 
-function hideSa(){$('assess').style.display='none';$('assess').className='';clearTimeout(saTimer);saActiveWord=null}
+function showInlineAssess(word){
+  // Remove any existing assessment card
+  if(saActiveEl){saActiveEl.remove();saActiveEl=null}
+  clearTimeout(saTimer);
 
-function saGot(){
-  if(saActiveWord){fetch('/vocab/assess',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({word:saActiveWord,confident:true})}).catch(()=>{})}
-  hideSa();
+  saActiveWord=word;
+
+  // Look up translation from cache or vocab
+  const cached=tcache[word.toLowerCase()];
+  const trans=cached?.translation||'';
+
+  // Create inline card in chat
+  const card=document.createElement('div');card.className='sa-card';
+  card.innerHTML='<div class="sa-prompt">'+word+'</div>'
+    +(trans?'<div class="sa-trans">'+trans+'</div>':'')
+    +'<div class="sa-btns">'
+    +'<button class="sa-btn sa-got" onclick="saGot(this)">&#10003; Got it</button>'
+    +'<button class="sa-btn sa-wip" onclick="saWip(this)">&#9684; Working on it</button>'
+    +'</div>';
+  $('chat').appendChild(card);
+  $('chat').scrollTop=$('chat').scrollHeight;
+  saActiveEl=card;
+  sndClick();
+
+  // Also try to fetch translation if not cached
+  if(!trans){
+    fetch('/translate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({word:word})})
+    .then(res=>res.json()).then(d=>{
+      const t=card.querySelector('.sa-trans');
+      if(!t){const nt=document.createElement('div');nt.className='sa-trans';nt.textContent=d.translation||'';card.querySelector('.sa-prompt').after(nt)}
+      else{t.textContent=d.translation||''}
+      tcache[word.toLowerCase()]=d;
+    }).catch(()=>{});
+  }
 }
-function saWip(){
-  if(saActiveWord){fetch('/vocab/assess',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({word:saActiveWord,confident:false})}).catch(()=>{})}
-  hideSa();
+
+function removeSaCard(){if(saActiveEl){saActiveEl.remove();saActiveEl=null}saActiveWord=null;clearTimeout(saTimer)}
+
+function saGot(btn){
+  if(!saActiveWord)return;
+  const word=saActiveWord;
+  const rect=btn.getBoundingClientRect();
+  confetti(rect.left+rect.width/2,rect.top,'green');
+  sndGot();haptic('heavy');
+
+  fetch('/vocab/assess',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({word:word,confident:true})})
+  .then(res=>res.json()).then(d=>{
+    if(saActiveEl){
+      const box=d.box||1;const days=[0,0,1,3,14,60][box]||0;
+      saActiveEl.innerHTML='<div class="sa-result got">&#10003; Got it!'
+        +'<div class="sa-detail">Box '+box+(days>0?' · review in '+days+' day'+(days>1?'s':''):'')+'</div></div>';
+      setTimeout(()=>{if(saActiveEl){saActiveEl.remove();saActiveEl=null}},2000);
+    }
+  }).catch(()=>{removeSaCard()});
+  saActiveWord=null;
+}
+
+function saWip(btn){
+  if(!saActiveWord)return;
+  const word=saActiveWord;
+  sndWip();haptic('light');
+
+  fetch('/vocab/assess',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({word:word,confident:false})})
+  .then(res=>res.json()).then(d=>{
+    if(saActiveEl){
+      saActiveEl.innerHTML='<div class="sa-result wip">&#9684; Working on it'
+        +'<div class="sa-detail">Will come back soon</div></div>';
+      setTimeout(()=>{if(saActiveEl){saActiveEl.remove();saActiveEl=null}},1500);
+    }
+  }).catch(()=>{removeSaCard()});
+  saActiveWord=null;
 }
 
 // Events
@@ -256,7 +346,7 @@ case 'response.output_audio_transcript.delta':case 'response.audio_transcript.de
 case 'response.output_audio_transcript.done':case 'response.audio_transcript.done':onDone();setSt(ptt?'Hold to talk':'Listening…','listen');break;
 case 'response.done':setSt(ptt?'Hold to talk':'Listening…','listen');if(bye){bye=false;setTimeout(endSession,2000)}break;
 case 'conversation.item.input_audio_transcription.completed':{const t=e.transcript?.trim();if(!t)break;addMsg('user',t);transcript.push({role:'user',text:t});checkSelfAssess(t);const lo=t.toLowerCase();if(GOODBYE.some(p=>lo.includes(p)))bye=true;checkCtx(t);const conf=CONFUSE.some(s=>s.length<=4?lo===s||lo===s.replace('?',''):lo.includes(s));if(conf&&dc?.readyState==='open')dc.send(JSON.stringify({type:'conversation.item.create',item:{type:'message',role:'system',content:[{type:'input_text',text:"He didn't understand. Say it again in plain English."}]}}));break}
-case 'input_audio_buffer.speech_started':setSt('Listening…','listen');hideSa();break;
+case 'input_audio_buffer.speech_started':setSt('Listening…','listen');removeSaCard();break;
 case 'input_audio_buffer.speech_stopped':setSt('Thinking…','');break;
 case 'error':console.error('RT error:',e);setSt(e.error?.message||'Error','');break;
 }}
