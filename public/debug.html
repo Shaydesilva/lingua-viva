@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Luna Debug</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:monospace;background:#1a1a2e;color:#e0e0e0;padding:16px;font-size:13px}
+    h1{font-size:18px;color:#fff;margin-bottom:12px}
+    h2{font-size:14px;color:#7ec8e3;margin:16px 0 8px;border-bottom:1px solid #333;padding-bottom:4px}
+    .btn{display:inline-block;padding:8px 16px;margin:4px;border:1px solid #555;border-radius:6px;background:#2a2a4a;color:#fff;font-family:monospace;font-size:13px;cursor:pointer}
+    .btn:active{background:#3a3a6a}
+    .btn.go{border-color:#5a8a6a;color:#5a8a6a}
+    .btn.stop{border-color:#c44a4a;color:#c44a4a}
+    #log{margin-top:12px;background:#111;border:1px solid #333;border-radius:8px;padding:12px;max-height:60vh;overflow-y:auto;white-space:pre-wrap;word-break:break-all;line-height:1.6;-webkit-overflow-scrolling:touch}
+    .ok{color:#5a8a6a}.err{color:#c44a4a}.warn{color:#e6a817}.info{color:#7ec8e3}.evt{color:#b39ddb}
+  </style>
+</head>
+<body>
+<h1>Luna Debug Console</h1>
+
+<h2>1. Server Tests</h2>
+<button class="btn" onclick="testHealth()">Test /health</button>
+<button class="btn" onclick="testSession()">Test /session</button>
+<button class="btn" onclick="testInterpret()">Test /session/interpret</button>
+<button class="btn" onclick="testTranslate()">Test /translate</button>
+<button class="btn" onclick="testTranslateMsg()">Test /translate-message</button>
+
+<h2>2. Live Session Test</h2>
+<button class="btn go" onclick="startLive('session')">Start Luna Session</button>
+<button class="btn go" onclick="startLive('interpret')">Start Interpret Session</button>
+<button class="btn stop" onclick="stopLive()">Stop</button>
+
+<h2>3. Event Log</h2>
+<button class="btn" onclick="clearLog()">Clear</button>
+<button class="btn" onclick="copyLog()">Copy All</button>
+<div id="log"></div>
+
+<script>
+var logEl=document.getElementById('log');
+var pc=null,dc=null,stream=null;
+
+function log(msg,cls){
+  var d=document.createElement('div');
+  d.className=cls||'';
+  var ts=new Date().toISOString().substr(11,12);
+  d.textContent='['+ts+'] '+msg;
+  logEl.appendChild(d);
+  logEl.scrollTop=logEl.scrollHeight;
+}
+
+function clearLog(){logEl.innerHTML=''}
+function copyLog(){
+  var text=logEl.innerText;
+  navigator.clipboard.writeText(text).then(function(){log('Copied to clipboard','ok')}).catch(function(){
+    // Fallback for mobile
+    var ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();
+    log('Copied to clipboard','ok');
+  });
+}
+
+// ── Server endpoint tests ──
+
+async function testHealth(){
+  log('Testing GET /health ...','info');
+  try{
+    var r=await fetch('/health');
+    var d=await r.json();
+    log('STATUS: '+r.status,'ok');
+    log('RESPONSE: '+JSON.stringify(d,null,2),'ok');
+  }catch(e){log('FAILED: '+e.message,'err')}
+}
+
+async function testSession(){
+  log('Testing POST /session ...','info');
+  try{
+    var r=await fetch('/session',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+    var d=await r.json();
+    log('STATUS: '+r.status, r.ok?'ok':'err');
+    if(d.value){log('GOT KEY: '+d.value.substring(0,20)+'...','ok');log('MODEL: '+(d.model||'unknown'),'info')}
+    else if(d.error){log('ERROR: '+JSON.stringify(d.error),'err')}
+    else{log('RESPONSE: '+JSON.stringify(d).substring(0,200),'warn')}
+  }catch(e){log('FAILED: '+e.message,'err')}
+}
+
+async function testInterpret(){
+  log('Testing POST /session/interpret ...','info');
+  try{
+    var r=await fetch('/session/interpret',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({context:null})});
+    var d=await r.json();
+    log('STATUS: '+r.status, r.ok?'ok':'err');
+    if(d.value){log('GOT KEY: '+d.value.substring(0,20)+'...','ok');log('MODEL: '+(d.model||'unknown'),'info')}
+    else if(d.error){log('ERROR: '+JSON.stringify(d.error),'err')}
+    else{log('RESPONSE: '+JSON.stringify(d).substring(0,200),'warn')}
+  }catch(e){log('FAILED: '+e.message,'err')}
+}
+
+async function testTranslate(){
+  log('Testing POST /translate ...','info');
+  try{
+    var r=await fetch('/translate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({word:'obrigado'})});
+    var d=await r.json();
+    log('STATUS: '+r.status,'ok');
+    log('RESPONSE: '+JSON.stringify(d),'ok');
+  }catch(e){log('FAILED: '+e.message,'err')}
+}
+
+async function testTranslateMsg(){
+  log('Testing POST /translate-message ...','info');
+  try{
+    var r=await fetch('/translate-message',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text:'I want two beers please'})});
+    var d=await r.json();
+    log('STATUS: '+r.status,'ok');
+    log('RESPONSE: '+JSON.stringify(d),'ok');
+  }catch(e){log('FAILED: '+e.message,'err')}
+}
+
+// ── Live session test ──
+
+async function startLive(type){
+  stopLive();
+  log('=== STARTING LIVE '+type.toUpperCase()+' SESSION ===','info');
+
+  // Step 1: Get token
+  log('Step 1: Requesting token...','info');
+  try{
+    var endpoint=type==='interpret'?'/session/interpret':'/session';
+    var body=type==='interpret'?JSON.stringify({context:'debug test'}):'{}'
+    var sr=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:body});
+    if(!sr.ok){
+      var errBody=await sr.text();
+      log('Token request failed: '+sr.status+' '+errBody,'err');
+      return;
+    }
+    var sd=await sr.json();
+    if(!sd.value){log('No key in response: '+JSON.stringify(sd).substring(0,200),'err');return}
+    log('Got token: '+sd.value.substring(0,20)+'...','ok');
+    log('Model: '+(sd.model||'unknown'),'info');
+  }catch(e){log('Token error: '+e.message,'err');return}
+
+  // Step 2: Get mic
+  log('Step 2: Requesting mic...','info');
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
+    log('Mic access granted. Tracks: '+stream.getAudioTracks().length,'ok');
+    stream.getAudioTracks().forEach(function(t){log('  Track: '+t.label+' enabled='+t.enabled+' muted='+t.muted,'info')});
+  }catch(e){log('Mic error: '+e.message,'err');return}
+
+  // Step 3: WebRTC
+  log('Step 3: Setting up WebRTC...','info');
+  try{
+    pc=new RTCPeerConnection();
+    pc.ontrack=function(e){log('Got remote audio track','ok')};
+    pc.oniceconnectionstatechange=function(){log('ICE state: '+pc.iceConnectionState,'info')};
+    pc.onconnectionstatechange=function(){log('Connection state: '+pc.connectionState,'info')};
+    stream.getTracks().forEach(function(t){pc.addTrack(t,stream)});
+    dc=pc.createDataChannel('oai-events');
+    log('DataChannel created','ok');
+  }catch(e){log('WebRTC setup error: '+e.message,'err');return}
+
+  // Step 4: DataChannel events
+  dc.onopen=function(){
+    log('DataChannel OPEN','ok');
+
+    // Send session update
+    var sessionUpdate={type:'session.update',session:{
+      type:'realtime',
+      turn_detection:{type:'server_vad',threshold:0.7,prefix_padding_ms:300,silence_duration_ms:1000},
+      input_audio_transcription:{model:'whisper-1'}
+    }};
+    log('Sending session.update: '+JSON.stringify(sessionUpdate.session.turn_detection),'info');
+    dc.send(JSON.stringify(sessionUpdate));
+
+    // Trigger first response for Luna mode
+    if(type==='session'){
+      setTimeout(function(){
+        log('Sending response.create','info');
+        dc.send(JSON.stringify({type:'response.create',response:{modalities:['text','audio']}}));
+      },400);
+    }
+
+    log('=== READY — SPEAK NOW ===','ok');
+  };
+
+  dc.onclose=function(){log('DataChannel CLOSED','warn')};
+  dc.onerror=function(e){log('DataChannel ERROR: '+e.message,'err')};
+
+  // Step 5: Log ALL events
+  dc.onmessage=function(e){
+    try{
+      var evt=JSON.parse(e.data);
+      var t=evt.type;
+
+      // Skip noisy events
+      if(t==='response.audio.delta')return; // raw audio chunks
+      if(t==='response.audio.done')return;
+
+      // Highlight important events
+      if(t==='conversation.item.input_audio_transcription.completed'){
+        var transcript=evt.transcript||'(empty)';
+        log('INPUT TRANSCRIPTION: "'+transcript+'"','ok');
+        return;
+      }
+      if(t==='response.output_audio_transcript.delta'||t==='response.audio_transcript.delta'){
+        log('OUTPUT DELTA: "'+(evt.delta||'')+'"','evt');
+        return;
+      }
+      if(t==='response.output_audio_transcript.done'||t==='response.audio_transcript.done'){
+        log('OUTPUT DONE — transcript field: "'+(evt.transcript||'(empty/null)')+'"','ok');
+        return;
+      }
+      if(t==='error'){
+        log('ERROR EVENT: '+JSON.stringify(evt),'err');
+        return;
+      }
+      if(t==='input_audio_buffer.speech_started'){
+        log('SPEECH STARTED (you are talking)','info');
+        return;
+      }
+      if(t==='input_audio_buffer.speech_stopped'){
+        log('SPEECH STOPPED (processing)','info');
+        return;
+      }
+      if(t==='response.created'||t==='response.done'){
+        log(t,'info');
+        return;
+      }
+      if(t==='session.created'||t==='session.updated'){
+        log(t+': '+JSON.stringify(evt.session?.turn_detection||{}),'info');
+        return;
+      }
+
+      // Everything else
+      log('EVENT: '+t,'evt');
+
+    }catch(err){log('Parse error: '+err.message,'err')}
+  };
+
+  // Step 6: SDP exchange
+  log('Step 4: SDP exchange...','info');
+  try{
+    var offer=await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    var model=sd.model||'gpt-realtime-mini';
+    var sdpR=await fetch('https://api.openai.com/v1/realtime/calls?model='+encodeURIComponent(model),{
+      method:'POST',headers:{Authorization:'Bearer '+sd.value,'Content-Type':'application/sdp'},body:offer.sdp
+    });
+    if(!sdpR.ok){log('SDP failed: '+sdpR.status+' '+await sdpR.text(),'err');return}
+    var answer=await sdpR.text();
+    await pc.setRemoteDescription({type:'answer',sdp:answer});
+    log('SDP exchange complete','ok');
+  }catch(e){log('SDP error: '+e.message,'err')}
+}
+
+function stopLive(){
+  if(dc){try{dc.close()}catch(e){}dc=null}
+  if(pc){try{pc.close()}catch(e){}pc=null}
+  if(stream){stream.getTracks().forEach(function(t){t.stop()});stream=null}
+  log('Session stopped','warn');
+}
+</script>
+</body>
+</html>
