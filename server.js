@@ -6,6 +6,7 @@ const { createClient } = require('@supabase/supabase-js');
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '5mb' }));
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'home.html')));
 app.use(express.static(path.join(__dirname, 'public')));
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY);
@@ -17,6 +18,8 @@ const DEFAULT_PROFILE = {
   comprehension_score: 10, production_score: 5, accuracy_score: 50,
   goals: null, current_phase: 1, current_phase_name: 'Survival', words_known: 0,
 };
+
+const LEITNER_INTERVALS = { 1: 0, 2: 1, 3: 3, 4: 14, 5: 60 };
 
 // ── GPT helper ─────────────────────────────────────────────────────────────
 
@@ -118,6 +121,15 @@ ${culturalBlock}
 
 ## Personality
 Warm, direct, bit of humor. React naturally but vary it. Have opinions about Rio. Keep to 1-3 sentences. Speak at a relaxed pace.
+
+## When He Repeats Portuguese
+- If he repeats a word or phrase back to you and it is understandable, do NOT correct or refine.
+- Do NOT add "you could also say..." or suggest variations after he repeats something.
+- Let him decide if he got it. He has buttons to signal you.
+- If he got it, acknowledge briefly — "yeah" "nice" "that's it" — and MOVE ON.
+- Maximum 2 attempts at any word in a single exchange. Then move on regardless.
+- Never make it feel like a test.
+- When he uses a Portuguese word naturally in conversation, that is the biggest win. Do not comment on it. Just respond naturally.
 
 ## NEVER DO
 - "great job", "well done", "nice try", "almost", "excellent"
@@ -364,33 +376,39 @@ For pronunciation_signals: compare Shay's Portuguese attempts against correct sp
     }
   }
 
-  // Update review words that were used correctly
+  // Update review words that were used correctly — also track natural_uses + Leitner promotion
   for (const pw of prodWords) {
     const { data: voc } = await supabase.from('vocabulary')
-      .select('id, times_used_correctly, times_heard, times_used_incorrectly, review_interval_days')
+      .select('id, times_used_correctly, times_heard, times_used_incorrectly, review_interval_days, leitner_box, natural_uses')
       .eq('user_id', 'default_user').eq('word', pw).single();
     if (voc) {
       const tc = (voc.times_used_correctly || 0) + 1;
       const ti = voc.times_used_incorrectly || 0;
       const th = voc.times_heard || 1;
+      const nu = (voc.natural_uses || 0) + 1;
       const mastery = (tc / (tc + ti + 1)) * Math.min(100, th * 10);
       const newInterval = Math.min(60, (voc.review_interval_days || 1) * 2);
+      // Natural use promotion: every 3 natural uses = promote one box
+      let box = voc.leitner_box || 1;
+      if (nu % 3 === 0 && box < 5) box += 1;
+      const days = LEITNER_INTERVALS[box] || 0;
       await supabase.from('vocabulary').update({
-        times_used_correctly: tc, mastery_score: mastery,
-        review_interval_days: newInterval,
-        next_review_at: new Date(Date.now() + newInterval * 86400000).toISOString(),
+        times_used_correctly: tc, mastery_score: mastery, natural_uses: nu,
+        leitner_box: box, review_interval_days: newInterval,
+        next_review_at: new Date(Date.now() + Math.max(days, newInterval) * 86400000).toISOString(),
       }).eq('id', voc.id);
     }
   }
 
-  // Reset interval for words used incorrectly
+  // Reset interval + demote box for words used incorrectly
   for (const a of accData.filter(x => !x.correct)) {
     const { data: voc } = await supabase.from('vocabulary')
-      .select('id, times_used_incorrectly').eq('user_id', 'default_user').eq('word', a.attempt?.split(' ')?.[0]).single();
+      .select('id, times_used_incorrectly, leitner_box').eq('user_id', 'default_user').eq('word', a.attempt?.split(' ')?.[0]).single();
     if (voc) {
+      const box = Math.max(1, (voc.leitner_box || 1) - 1);
       await supabase.from('vocabulary').update({
         times_used_incorrectly: (voc.times_used_incorrectly || 0) + 1,
-        review_interval_days: 1,
+        leitner_box: box, review_interval_days: 1,
         next_review_at: new Date(Date.now() + 86400000).toISOString(),
       }).eq('id', voc.id);
     }
@@ -690,6 +708,117 @@ app.post('/translate', async (req, res) => {
     res.json(result);
   } catch (err) {
     res.json({ translation: '—', language: 'unknown' });
+  }
+});
+
+// ── POST /vocab/assess ─────────────────────────────────────────────────────
+
+app.post('/vocab/assess', async (req, res) => {
+  const { word, confident } = req.body || {};
+  if (!word) return res.json({ error: 'No word' });
+
+  const { data: voc } = await supabase.from('vocabulary')
+    .select('*').eq('user_id', 'default_user').eq('word', word).single();
+
+  if (!voc) return res.json({ error: 'Word not found' });
+
+  let box = voc.leitner_box || 1;
+  let got = voc.times_got_it || 0;
+  let wip = voc.times_working || 0;
+
+  if (confident) {
+    got += 1;
+    box = Math.min(box + 1, 5);
+  } else {
+    wip += 1;
+    box = 1;
+  }
+
+  const days = LEITNER_INTERVALS[box] || 0;
+  const nextReview = new Date(Date.now() + days * 86400000).toISOString();
+  const mastery = Math.min(100, Math.round((got / (got + wip + 1)) * box * 20));
+
+  await supabase.from('vocabulary').update({
+    leitner_box: box, times_got_it: got, times_working: wip,
+    mastery_score: mastery, next_review_at: nextReview,
+    self_assessed_at: new Date().toISOString(),
+  }).eq('id', voc.id);
+
+  res.json({ word, box, mastery, next_review_at: nextReview });
+});
+
+// ── GET /vocab/due ─────────────────────────────────────────────────────────
+
+app.get('/vocab/due', async (req, res) => {
+  const { data } = await supabase.from('vocabulary')
+    .select('word, translation, mastery_score, leitner_box, context_first_used')
+    .eq('user_id', 'default_user')
+    .lte('next_review_at', new Date().toISOString())
+    .order('leitner_box', { ascending: true })
+    .limit(10);
+  res.json(data || []);
+});
+
+// ── GET /vocab/due-count ───────────────────────────────────────────────────
+
+app.get('/vocab/due-count', async (req, res) => {
+  const { count } = await supabase.from('vocabulary')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', 'default_user')
+    .lte('next_review_at', new Date().toISOString());
+  res.json({ count: count || 0 });
+});
+
+// ── POST /session/revise ───────────────────────────────────────────────────
+
+app.post('/session/revise', async (req, res) => {
+  const model = process.env.REALTIME_MODEL || 'gpt-realtime-mini';
+
+  // Get words due for review
+  const { data: dueWords } = await supabase.from('vocabulary')
+    .select('word, translation, leitner_box, context_first_used')
+    .eq('user_id', 'default_user')
+    .lte('next_review_at', new Date().toISOString())
+    .order('leitner_box', { ascending: true })
+    .limit(10);
+
+  if (!dueWords || dueWords.length === 0) {
+    return res.json({ empty: true });
+  }
+
+  const wordList = dueWords.map(function(w) {
+    return '- ' + w.word + ' (' + w.translation + ')' + (w.context_first_used ? ' — context: ' + w.context_first_used : '') + ' [box ' + w.leitner_box + ']';
+  }).join('\n');
+
+  const instructions = 'You are Luna running a quick Portuguese revision session. Rapid-fire conversational review.\n\n'
+    + 'FOR EACH WORD:\n'
+    + '1. Create a quick real-world situation where the word is needed\n'
+    + '2. Ask the user to respond in Portuguese (or translate to Portuguese)\n'
+    + '3. If they get it: say "yeah" or "nice" and move to the next word IMMEDIATELY\n'
+    + '4. If they struggle: model the correct answer once, then move on\n'
+    + '5. Max 15-20 seconds per word. Keep it fast.\n\n'
+    + 'STYLE: Casual, quick. Never say "great job" or "excellent." Just "yeah" "nice" "that\'s it" and move on.\n'
+    + 'NEVER explain grammar. NEVER give lectures. Just test and move.\n'
+    + 'Start immediately with the first word. No greetings. No "are you ready?" Just go.\n'
+    + 'When all words are done, say "Done. Nice round." and stop.\n\n'
+    + 'WORDS TO REVIEW (weakest first):\n' + wordList;
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/realtime/client_secrets', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        session: { type: 'realtime', model, instructions, audio: { output: { voice: 'marin' } } },
+      }),
+    });
+    if (!response.ok) {
+      const err = await response.text();
+      return res.status(response.status).json({ error: err });
+    }
+    const data = await response.json();
+    res.json({ ...data, model, words: dueWords });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
