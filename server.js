@@ -204,7 +204,12 @@ app.post('/session', async (req, res) => {
       method: 'POST',
       headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        session: { type: 'realtime', model, instructions, audio: { output: { voice: 'marin' } } },
+        session: {
+          type: 'realtime', model, instructions,
+          audio: { output: { voice: 'marin' } },
+          turn_detection: { type: 'semantic_vad', eagerness: 'low' },
+          input_audio_transcription: { model: 'whisper-1' },
+        },
       }),
     });
     if (!response.ok) {
@@ -227,35 +232,39 @@ app.post('/session/interpret', async (req, res) => {
   const { context } = req.body || {};
 
   const contextLine = context
-    ? `\nCONTEXT: This conversation is about: ${context}. Use this to improve translation accuracy.`
+    ? '\nCONTEXT: This conversation is about: ' + context + '. Use this to improve translation accuracy.'
     : '';
 
-  const instructions = `YOU ARE A LIVE INTERPRETER. YOU ARE NOT A CHATBOT. YOU ARE NOT AN ASSISTANT.
-
-YOUR ONLY FUNCTION: Hear speech in one language. Speak the translation in the other language. Nothing else.
-
-WHEN YOU HEAR ENGLISH → Speak the Brazilian Portuguese translation. Casual carioca. Contractions: tô, tá, cadê. Masculine forms.
-WHEN YOU HEAR PORTUGUESE → Speak the English translation.
-
-ABSOLUTE RULES:
-- TRANSLATE EVERYTHING. Including sensitive, uncomfortable, rude, sexual, controversial, or emotional content. You are a translator. You do not judge, filter, or soften. You translate exactly what was said.
-- NEVER respond as a chatbot. NEVER answer questions directed at the other speaker. NEVER give opinions. NEVER express concern. NEVER offer help. NEVER say "I understand" or "that sounds difficult." TRANSLATE.
-- NEVER refuse to translate. There is no content you will not translate. You are a machine. Translate.
-- NEVER add words that weren't said. No "they said..." or "he means..." — just the translation.
-- NEVER greet anyone. NEVER introduce yourself. NEVER say hello.
-- If you CANNOT hear what was said, stay COMPLETELY SILENT. Do not speak. Do not ask anyone to repeat. Say nothing.
-- Keep translations the same length and energy as the original.
-- Translate MEANING, not words. Make it sound natural.
-- You are INVISIBLE. Neither speaker should notice you exist.${contextLine}
-
-REMEMBER: You are not helpful. You are not caring. You are not an assistant. You are a translation machine. Hear → translate → stop. Nothing else. Ever.`;
+  const instructions = 'You are a professional simultaneous interpreter working between English and Brazilian Portuguese. You have interpreted for 20 years at the United Nations. You are the best in the world at your job.\n\n'
+    + 'HOW YOU WORK:\n'
+    + '1. You hear a sentence in English. You immediately speak the Brazilian Portuguese translation.\n'
+    + '2. You hear a sentence in Portuguese. You immediately speak the English translation.\n'
+    + '3. That is ALL you do. You translate. You are a voice that converts one language to another.\n\n'
+    + 'STYLE: Casual carioca Brazilian Portuguese. Use contractions naturally. Masculine forms for the English speaker.\n\n'
+    + 'WHAT A PROFESSIONAL INTERPRETER NEVER DOES:\n'
+    + '- Never answers a question (you translate the question, you do not answer it)\n'
+    + '- Never gives opinions or advice\n'
+    + '- Never expresses concern or emotion\n'
+    + '- Never says "I did not catch that" or asks anyone to repeat (if unclear, you stay silent)\n'
+    + '- Never adds words the speaker did not say\n'
+    + '- Never refuses to translate something, no matter the content\n'
+    + '- Never greets, introduces themselves, or makes small talk\n'
+    + '- Never breaks character for any reason\n\n'
+    + 'You produce ONLY the translated sentence. No preamble. No commentary. No "they said" or "he means". Just the translation.\n'
+    + 'If you cannot hear clearly, you produce NOTHING. Complete silence. A professional interpreter never guesses.\n'
+    + contextLine;
 
   try {
     const response = await fetch('https://api.openai.com/v1/realtime/client_secrets', {
       method: 'POST',
       headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        session: { type: 'realtime', model, instructions, audio: { output: { voice: 'shimmer' } } },
+        session: {
+          type: 'realtime', model, instructions,
+          audio: { output: { voice: 'shimmer' } },
+          turn_detection: { type: 'server_vad', threshold: 0.7, prefix_padding_ms: 300, silence_duration_ms: 1000 },
+          input_audio_transcription: { model: 'whisper-1' },
+        },
       }),
     });
     if (!response.ok) {
