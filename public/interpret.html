@@ -10,15 +10,18 @@
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    :root{--bg:#FAF7F2;--bg2:#F3EDE4;--card:#FFF;--border:#E8E0D4;--text:#2C2825;--text2:#7A7067;--text3:#A69E94;--accent:#C4654A;--accent-l:#F2DDD6;--pt:#B8860B;--pt-bg:#FDF6E3;--green:#5A8A6A;--blue:#4A7CC4}
+    :root{--bg:#FAF7F2;--bg2:#F3EDE4;--card:#FFF;--border:#E8E0D4;--text:#2C2825;--text2:#7A7067;--text3:#A69E94;--accent:#C4654A;--accent-l:#F2DDD6;--pt:#B8860B;--pt-bg:#FDF6E3;--green:#5A8A6A;--blue:#4A7CC4;--blue-l:#E0ECF8}
     html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Source Sans 3',sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden}
     #app{display:flex;flex-direction:column;height:100dvh;max-width:600px;margin:0 auto;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+
     header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px 12px;border-bottom:1px solid var(--border);flex-shrink:0}
     .back{font-size:14px;color:var(--text3);text-decoration:none}
     .title{font-family:'Instrument Serif',serif;font-size:20px;font-style:italic}
     .mode-pill{display:flex;background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:2px}
     .mode-opt{padding:4px 11px;border-radius:18px;font-size:11px;font-weight:600;color:var(--text3);cursor:pointer}
     .mode-opt.on{background:var(--card);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+
+    /* Setup */
     #setup{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px 24px;gap:20px}
     #setup h2{font-family:'Instrument Serif',serif;font-size:26px;font-style:italic;font-weight:400;text-align:center}
     #setup p{font-size:14px;color:var(--text3);text-align:center;line-height:1.5;max-width:300px}
@@ -27,33 +30,44 @@
     .start-btn{width:100%;max-width:320px;padding:15px;border:none;border-radius:14px;background:var(--accent);color:#fff;font-family:inherit;font-size:16px;font-weight:600;cursor:pointer;box-shadow:0 2px 12px rgba(196,101,74,.25)}
     .start-btn:active{transform:scale(.97)}
     .start-btn:disabled{opacity:.4}
-    #conv{flex:1;display:none;flex-direction:column;overflow:hidden}
-    .half{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
-    .half-en{border-bottom:2px solid var(--border)}
-    .half-label{padding:8px 20px 4px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;flex-shrink:0}
-    .half-en .half-label{color:var(--blue)}
-    .half-pt .half-label{color:var(--pt)}
-    .half-scroll{flex:1;overflow-y:auto;padding:4px 20px 8px;-webkit-overflow-scrolling:touch;min-height:0}
-    .line{margin-bottom:8px;animation:fadeUp .15s ease}
-    .line-orig{font-size:15px;line-height:1.5}
-    .line-tl{font-size:13px;color:var(--text3);line-height:1.4;margin-top:1px;font-style:italic}
-    .half-en .line-orig{color:var(--text)}
-    .half-pt .line-orig{color:var(--pt)}
-    @keyframes fadeUp{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
-    .tap-bar{display:none;flex-shrink:0;height:48px;border-top:1px solid var(--border);align-items:center;justify-content:center;cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
-    .tap-bar.show{display:flex}
-    .tap-bar span{font-size:13px;font-weight:500;color:var(--text3)}
-    .tap-bar.held{background:var(--bg2)}
-    .tap-bar.held span{color:var(--green)}
-    .banner{position:fixed;top:60px;left:16px;right:16px;max-width:568px;margin:0 auto;padding:10px 16px;background:var(--accent-l);border:1px solid var(--accent);border-radius:10px;text-align:center;font-size:13px;color:var(--accent);font-weight:500;z-index:50;opacity:0;transform:translateY(-10px);transition:all .2s;pointer-events:none}
-    .banner.show{opacity:1;transform:translateY(0)}
-    #sbar{flex-shrink:0;padding:10px 20px;display:flex;align-items:center;gap:8px;border-top:1px solid var(--border)}
+
+    /* Chat feed — mirrors main Luna exactly */
+    #chat{flex:1;overflow-y:auto;padding:16px 20px;display:none;flex-direction:column;gap:10px;-webkit-overflow-scrolling:touch}
+    .msg{max-width:88%;display:flex;flex-direction:column;animation:fadeUp .2s ease}
+    .msg.spoken{align-self:flex-end;align-items:flex-end}
+    .msg.translated{align-self:flex-start}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+    .bubble{padding:10px 14px;border-radius:18px;font-size:15px;line-height:1.5}
+    .spoken .bubble{background:var(--accent);color:#fff;border-bottom-right-radius:4px}
+    .translated .bubble{background:var(--card);border:1px solid var(--border);color:var(--text);border-bottom-left-radius:4px}
+
+    .lang-badge{display:inline-block;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:10px;margin-bottom:4px}
+    .badge-en{background:var(--blue-l);color:var(--blue)}
+    .badge-pt{background:var(--pt-bg);color:var(--pt)}
+
+    /* Live streaming area — mirrors main Luna */
+    #live{flex-shrink:0;min-height:30px;padding:6px 20px 4px;font-size:15px;line-height:1.5;color:var(--text3);display:none}
+
+    /* Status bar */
+    #sbar{flex-shrink:0;padding:10px 20px;display:none;align-items:center;gap:8px;border-top:1px solid var(--border)}
     .dot{width:8px;height:8px;border-radius:50%;background:var(--text3);flex-shrink:0}
     .dot.on{background:var(--green);animation:pulse 1.8s ease-in-out infinite}
     .dot.speak{background:var(--accent);animation:pulse .6s ease-in-out infinite}
     @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
     #stxt{font-size:13px;color:var(--text3);flex:1}
     .end-btn{padding:8px 16px;border:1px solid var(--border);border-radius:10px;background:var(--bg2);font-family:inherit;font-size:13px;font-weight:500;color:var(--text2);cursor:pointer}
+
+    /* Tap controls */
+    #tapCtrl{flex-shrink:0;display:none;gap:8px;padding:8px 20px 16px}
+    .tap-btn{flex:1;padding:14px;border:1.5px dashed var(--border);border-radius:14px;background:transparent;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;text-align:center;-webkit-tap-highlight-color:transparent;transition:all .1s}
+    .tap-btn.held{border-style:solid}
+    .tap-en{color:var(--blue)}.tap-en.held{background:var(--blue-l);border-color:var(--blue)}
+    .tap-pt{color:var(--pt)}.tap-pt.held{background:var(--pt-bg);border-color:var(--pt)}
+
+    /* Banner */
+    .banner{position:fixed;top:60px;left:16px;right:16px;max-width:568px;margin:0 auto;padding:10px 16px;background:var(--accent-l);border:1px solid var(--accent);border-radius:10px;text-align:center;font-size:13px;color:var(--accent);font-weight:500;z-index:50;opacity:0;transform:translateY(-10px);transition:all .2s;pointer-events:none}
+    .banner.show{opacity:1;transform:translateY(0)}
   </style>
 </head>
 <body>
@@ -66,38 +80,37 @@
       <div class="mode-opt" id="mTap" onclick="setMode('tap')">Tap</div>
     </div>
   </header>
+
   <div id="setup">
     <h2>Live Interpreter</h2>
-    <p>Translates between you and a Portuguese speaker in real-time.</p>
+    <p>Translates between you and a Portuguese speaker in real-time. Speak naturally &#8212; translations appear as chat bubbles.</p>
     <input class="ctx-input" id="ctxInput" type="text" placeholder="Context? e.g. ordering at a restaurant"/>
     <button class="start-btn" id="startBtn" onclick="startInterpret()">Start Interpreting</button>
   </div>
-  <div id="conv">
-    <div class="half half-en">
-      <div class="half-label">English &#8212; You</div>
-      <div class="half-scroll" id="enScroll"></div>
-      <div class="tap-bar" id="tapEn" ontouchstart="tapOn('en',event)" ontouchend="tapOff(event)" onmousedown="tapOn('en',event)" onmouseup="tapOff(event)"><span>Hold to speak English</span></div>
-    </div>
-    <div class="half half-pt">
-      <div class="half-label">Portugu&#234;s &#8212; Them</div>
-      <div class="half-scroll" id="ptScroll"></div>
-      <div class="tap-bar" id="tapPt" ontouchstart="tapOn('pt',event)" ontouchend="tapOff(event)" onmousedown="tapOn('pt',event)" onmouseup="tapOff(event)"><span>Segure para falar</span></div>
-    </div>
+
+  <div id="chat"></div>
+  <div id="live"></div>
+
+  <div id="tapCtrl">
+    <button class="tap-btn tap-en" id="tapEn" ontouchstart="tapOn('en',event)" ontouchend="tapOff(event)" onmousedown="tapOn('en',event)" onmouseup="tapOff(event)">Hold &#8212; English</button>
+    <button class="tap-btn tap-pt" id="tapPt" ontouchstart="tapOn('pt',event)" ontouchend="tapOff(event)" onmousedown="tapOn('pt',event)" onmouseup="tapOff(event)">Segure &#8212; Portugu&#234;s</button>
   </div>
-  <div class="banner" id="banner"></div>
-  <div id="sbar" style="display:none">
+
+  <div id="sbar">
     <div class="dot" id="dot"></div>
     <span id="stxt">Listening...</span>
     <button class="end-btn" onclick="endInterpret()">End</button>
   </div>
-</div>
-<audio id="aud" autoplay playsinline></audio>
-<script>
-// ── State ──
-var pc=null,dc=null,stream=null,state='idle',mode='auto';
-var tapLang=null,lastInputSide=null,reinforceInt=null;
 
-// Echo detection: store last 3 model outputs, ignore input that matches
+  <div class="banner" id="banner"></div>
+</div>
+
+<audio id="aud" autoplay playsinline></audio>
+
+<script>
+var pc=null,dc=null,stream=null,state='idle',mode='auto';
+var tapLang=null,lastInputSide=null;
+var outputBuf='',reinforceInt=null;
 var recentOutputs=[];
 
 function $(id){return document.getElementById(id)}
@@ -106,7 +119,7 @@ function $(id){return document.getElementById(id)}
 var PT_RE=/[ãõâêîôûçáéíóúàü]/i;
 var PT_SET=new Set(['tá','né','tô','cê','cara','gente','assim','então','tipo','nossa','oi','tchau','obrigado','legal','saudade','praia','poxa','beleza','valeu','falou','não','sim','muito','mais','uma','isso','bom','boa','bem','tudo','você','mas','cadê','também','porque','eu','ele','ela','esse','essa','fazer','querer','saber','falar','olhar','pode','preciso','acho','vamos','bora','pô','aqui','ali','lá','meu','minha','como','quando','onde','qual','ter','ser','estar','ir','vir','poder','dar','ver','pegar','ficar','chegar','deixar','passar']);
 
-function isPtText(text){
+function isPt(text){
   var words=text.toLowerCase().replace(/[.,!?;:'"()\-]/g,'').split(/\s+/).filter(Boolean);
   var ptCount=0;
   for(var i=0;i<words.length;i++){if(PT_RE.test(words[i])||PT_SET.has(words[i]))ptCount++}
@@ -115,38 +128,79 @@ function isPtText(text){
 
 function whichSide(text){
   if(mode==='tap'&&tapLang)return tapLang;
-  return isPtText(text)?'pt':'en';
+  return isPt(text)?'pt':'en';
 }
 
-// ── Echo detection: check if input is just the model's own output ──
+// ── Echo detection ──
 function isEcho(text){
-  var inputWords=text.toLowerCase().split(/\s+/);
+  var iw=text.toLowerCase().split(/\s+/);
   for(var i=0;i<recentOutputs.length;i++){
-    var outWords=recentOutputs[i].toLowerCase().split(/\s+/);
-    // Count overlapping words
-    var matches=0;
-    for(var j=0;j<inputWords.length;j++){
-      if(outWords.indexOf(inputWords[j])>=0)matches++;
-    }
-    var overlap=matches/Math.max(inputWords.length,1);
-    if(overlap>0.5)return true;
+    var ow=recentOutputs[i].toLowerCase().split(/\s+/);
+    var m=0;
+    for(var j=0;j<iw.length;j++){if(ow.indexOf(iw[j])>=0)m++}
+    if(m/Math.max(iw.length,1)>0.5)return true;
   }
   return false;
 }
+function trackOutput(t){recentOutputs.push(t);if(recentOutputs.length>3)recentOutputs.shift()}
 
-function trackOutput(text){
-  recentOutputs.push(text);
-  if(recentOutputs.length>3)recentOutputs.shift();
+// ── Display — mirrors main Luna ──
+function addBubble(type,lang,text){
+  // type: 'spoken' (user said it) or 'translated' (model translation)
+  var m=document.createElement('div');
+  m.className='msg '+type;
+
+  var badge=document.createElement('span');
+  badge.className='lang-badge '+(lang==='pt'?'badge-pt':'badge-en');
+  badge.textContent=lang==='pt'?'Portugu\u00eas':'English';
+
+  var b=document.createElement('div');
+  b.className='bubble';
+  b.textContent=text;
+
+  m.appendChild(badge);
+  m.appendChild(b);
+  $('chat').appendChild(m);
+  $('chat').scrollTop=$('chat').scrollHeight;
 }
 
-// ── Mode switching ──
+function showBanner(msg){
+  $('banner').textContent=msg;$('banner').classList.add('show');
+  setTimeout(function(){$('banner').classList.remove('show')},3000);
+}
+
+// ── Live streaming (mirrors main Luna's onD/onDone) ──
+function onDelta(d){
+  outputBuf+=d;
+  $('live').textContent=outputBuf;
+  $('live').style.display='block';
+}
+
+function onDone(){
+  var text=outputBuf.trim();
+  outputBuf='';
+  $('live').textContent='';
+  $('live').style.display='none';
+
+  if(!text)return;
+  trackOutput(text);
+
+  // Translation goes on opposite side from last input
+  if(lastInputSide){
+    var tLang=lastInputSide==='en'?'pt':'en';
+    addBubble('translated',tLang,text);
+  }
+}
+
+// ── Mode ──
 function setMode(m){
   mode=m;
   $('mAuto').className='mode-opt'+(m==='auto'?' on':'');
   $('mTap').className='mode-opt'+(m==='tap'?' on':'');
-  $('tapEn').className='tap-bar'+(m==='tap'?' show':'');
-  $('tapPt').className='tap-bar'+(m==='tap'?' show':'');
-  if(stream){stream.getAudioTracks().forEach(function(t){t.enabled=(m==='auto')})}
+  if(state==='live'){
+    $('tapCtrl').style.display=m==='tap'?'flex':'none';
+    if(stream){stream.getAudioTracks().forEach(function(t){t.enabled=(m==='auto')})}
+  }
 }
 
 function tapOn(lang,e){
@@ -155,7 +209,7 @@ function tapOn(lang,e){
   tapLang=lang;
   stream.getAudioTracks().forEach(function(t){t.enabled=true});
   (lang==='en'?$('tapEn'):$('tapPt')).classList.add('held');
-  $('stxt').textContent=lang==='en'?'Listening (English)...':'Ouvindo (Portugues)...';
+  $('stxt').textContent=lang==='en'?'Listening (English)...':'Ouvindo (Portugu\u00eas)...';
 }
 function tapOff(e){
   e.preventDefault();
@@ -166,74 +220,43 @@ function tapOff(e){
   $('stxt').textContent='Listening...';
 }
 
-// ── Display ──
-function addLine(side,text){
-  var c=side==='en'?$('enScroll'):$('ptScroll');
-  var d=document.createElement('div');d.className='line';
-  var o=document.createElement('div');o.className='line-orig';o.textContent=text;
-  d.appendChild(o);c.appendChild(d);c.scrollTop=c.scrollHeight;
-}
-
-function addSub(side,text){
-  var c=side==='en'?$('enScroll'):$('ptScroll');
-  var last=c.lastElementChild;
-  if(!last)return;
-  var tl=last.querySelector('.line-tl');
-  if(!tl){tl=document.createElement('div');tl.className='line-tl';last.appendChild(tl)}
-  tl.textContent=text;
-}
-
-function showBanner(msg){
-  $('banner').textContent=msg;$('banner').classList.add('show');
-  setTimeout(function(){$('banner').classList.remove('show')},3000);
-}
-
-// ── Events — mirrors main Luna's working pattern exactly ──
-var outputBuf=''; // Accumulate model output from deltas
-
+// ── Events — same structure as main Luna ──
 function handleEvt(e){
   if(!e||!e.type)return;
   switch(e.type){
 
+  // Model translation streaming in (same as main Luna's onD)
   case 'response.output_audio_transcript.delta':
   case 'response.audio_transcript.delta':
-    // Accumulate translation text from deltas (same pattern as main Luna)
-    if(e.delta)outputBuf+=e.delta;
-    $('dot').className='dot speak';
-    $('stxt').textContent='Translating...';
+    if(e.delta){
+      onDelta(e.delta);
+      $('dot').className='dot speak';
+      $('stxt').textContent='Translating...';
+    }
     break;
 
+  // Model translation complete (same as main Luna's onDone)
   case 'response.output_audio_transcript.done':
   case 'response.audio_transcript.done':
-    // Model finished — use accumulated buffer OR fallback to e.transcript
-    var ot=outputBuf.trim()||(e.transcript?e.transcript.trim():'');
-    outputBuf='';
-    if(ot){
-      trackOutput(ot);
-      if(lastInputSide){
-        var tSide=lastInputSide==='en'?'pt':'en';
-        addLine(tSide,ot);
-        addSub(lastInputSide,ot);
-      }
-    }
+    onDone();
     $('dot').className='dot on';
     $('stxt').textContent='Listening...';
     break;
 
   case 'response.done':
-    // Safety reset
-    outputBuf='';
+    // Safety: flush any remaining buffer
+    if(outputBuf.trim()){onDone()}
     $('dot').className='dot on';
     $('stxt').textContent='Listening...';
     break;
 
+  // User speech transcribed (same event as main Luna)
   case 'conversation.item.input_audio_transcription.completed':
-    var it=e.transcript?e.transcript.trim():'';
-    if(!it)break;
-    if(isEcho(it)){break}
-    lastInputSide=whichSide(it);
-    addLine(lastInputSide,it);
-    $('stxt').textContent='Translating...';
+    var t=e.transcript?e.transcript.trim():'';
+    if(!t)break;
+    if(isEcho(t))break;
+    lastInputSide=whichSide(t);
+    addBubble('spoken',lastInputSide,t);
     break;
 
   case 'input_audio_buffer.speech_started':
@@ -247,7 +270,6 @@ function handleEvt(e){
 
   case 'error':
     console.error('RT error:',JSON.stringify(e));
-    outputBuf='';
     showBanner('Didn\'t catch that \u2014 please repeat');
     break;
   }
@@ -281,23 +303,27 @@ async function startInterpret(){
     dc.onopen=function(){
       state='live';
       recentOutputs=[];
+      outputBuf='';
       $('setup').style.display='none';
-      $('conv').style.display='flex';
+      $('chat').style.display='flex';
+      $('live').style.display='none';
       $('sbar').style.display='flex';
+      if(mode==='tap')$('tapCtrl').style.display='flex';
       $('dot').className='dot on';
       $('stxt').textContent='Listening...';
 
+      // Enable transcription (same pattern as main Luna)
       dc.send(JSON.stringify({type:'session.update',session:{type:'realtime',input_audio_transcription:{model:'whisper-1'}}}));
 
-      // Tap mode: mic off. Auto mode: mic on.
+      // Tap mode: mic off. Auto: mic on.
       if(mode==='tap'){stream.getAudioTracks().forEach(function(t){t.enabled=false})}
 
-      // Reinforcement every 30s to prevent chatbot drift
+      // Reinforcement every 30s
       reinforceInt=setInterval(function(){
         if(dc&&dc.readyState==='open'){
           dc.send(JSON.stringify({type:'conversation.item.create',item:{
             type:'message',role:'system',
-            content:[{type:'input_text',text:'INTERPRETER MODE. Translate only. Do not respond. Do not answer questions. Do not give opinions. Do not express concern. Do not ask to repeat. If unclear, stay completely silent. Translate what was said into the other language. Nothing else.'}]
+            content:[{type:'input_text',text:'You are an interpreter. Translate only. Never respond as a chatbot. Never answer questions. Never give opinions. Never express concern. If unclear, stay silent.'}]
           }}));
         }
       },30000);
@@ -332,14 +358,15 @@ function endInterpret(){
   if(pc){try{pc.close()}catch(e){}pc=null}
   if(stream){stream.getTracks().forEach(function(t){t.stop()});stream=null}
   $('aud').srcObject=null;
-  $('conv').style.display='none';
+  $('chat').style.display='none';
+  $('live').style.display='none';
   $('sbar').style.display='none';
+  $('tapCtrl').style.display='none';
   $('setup').style.display='flex';
   $('startBtn').disabled=false;
   $('startBtn').textContent='Start Interpreting';
-  $('enScroll').innerHTML='';
-  $('ptScroll').innerHTML='';
-  lastInputSide=null;recentOutputs=[];
+  $('chat').innerHTML='';
+  lastInputSide=null;outputBuf='';recentOutputs=[];
 }
 </script>
 </body>
