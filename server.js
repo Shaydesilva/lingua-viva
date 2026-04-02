@@ -204,11 +204,7 @@ app.post('/session', async (req, res) => {
       method: 'POST',
       headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        session: {
-          type: 'realtime', model, instructions,
-          audio: { output: { voice: 'marin' } },
-          input_audio_transcription: { model: 'whisper-1' },
-        },
+        session: { type: 'realtime', model, instructions, audio: { output: { voice: 'marin' } } },
       }),
     });
     if (!response.ok) {
@@ -258,11 +254,7 @@ app.post('/session/interpret', async (req, res) => {
       method: 'POST',
       headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        session: {
-          type: 'realtime', model, instructions,
-          audio: { output: { voice: 'shimmer' } },
-          input_audio_transcription: { model: 'whisper-1' },
-        },
+        session: { type: 'realtime', model, instructions, audio: { output: { voice: 'shimmer' } } },
       }),
     });
     if (!response.ok) {
