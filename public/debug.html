@@ -163,9 +163,12 @@ async function startLive(type){
   dc.onopen=function(){
     log('DataChannel OPEN','ok');
 
+    log('Sending session.update (transcription only)','info');
+    dc.send(JSON.stringify({type:'session.update',session:{input_audio_transcription:{model:'whisper-1'}}}));
+
     if(type==='session'){
       log('Sending response.create','info');
-      dc.send(JSON.stringify({type:'response.create'}));
+      setTimeout(function(){dc.send(JSON.stringify({type:'response.create'}))},400);
     }
 
     log('=== READY — SPEAK NOW ===','ok');

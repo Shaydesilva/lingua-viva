@@ -287,6 +287,8 @@ async function startInterpret(){
       $('dot').className='dot on';
       $('stxt').textContent='Listening...';
 
+      dc.send(JSON.stringify({type:'session.update',session:{input_audio_transcription:{model:'whisper-1'}}}));
+
       // Tap mode: mic off. Auto mode: mic on.
       if(mode==='tap'){stream.getAudioTracks().forEach(function(t){t.enabled=false})}
 
