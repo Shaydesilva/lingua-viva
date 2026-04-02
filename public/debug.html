@@ -163,21 +163,9 @@ async function startLive(type){
   dc.onopen=function(){
     log('DataChannel OPEN','ok');
 
-    // Send session update
-    var sessionUpdate={type:'session.update',session:{
-      type:'realtime',
-      turn_detection:{type:'server_vad',threshold:0.7,prefix_padding_ms:300,silence_duration_ms:1000},
-      input_audio_transcription:{model:'whisper-1'}
-    }};
-    log('Sending session.update: '+JSON.stringify(sessionUpdate.session.turn_detection),'info');
-    dc.send(JSON.stringify(sessionUpdate));
-
-    // Trigger first response for Luna mode
     if(type==='session'){
-      setTimeout(function(){
-        log('Sending response.create','info');
-        dc.send(JSON.stringify({type:'response.create',response:{modalities:['text','audio']}}));
-      },400);
+      log('Sending response.create','info');
+      dc.send(JSON.stringify({type:'response.create'}));
     }
 
     log('=== READY — SPEAK NOW ===','ok');

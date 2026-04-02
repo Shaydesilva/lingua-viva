@@ -287,13 +287,6 @@ async function startInterpret(){
       $('dot').className='dot on';
       $('stxt').textContent='Listening...';
 
-      // Use server_vad — proven to work in this context
-      dc.send(JSON.stringify({type:'session.update',session:{
-        type:'realtime',
-        turn_detection:{type:'server_vad',threshold:0.7,prefix_padding_ms:300,silence_duration_ms:1000},
-        input_audio_transcription:{model:'whisper-1'}
-      }}));
-
       // Tap mode: mic off. Auto mode: mic on.
       if(mode==='tap'){stream.getAudioTracks().forEach(function(t){t.enabled=false})}
 

@@ -167,7 +167,7 @@ function setBtn(s){const b=$('mbtn');if(s==='wait'){b.className='btn btn-wait';b
 // Timer
 function startTmr(){t0=Date.now();$('tmr').className='timer on';tmrI=setInterval(()=>{const s=Math.floor((Date.now()-t0)/1000),m=Math.floor(s/60);$('tmr').textContent=`${m}:${String(s%60).padStart(2,'0')}`;if(s>=25*60)$('tmr').className='timer warn';if(s>=MAX_MINS*60&&!cap)triggerCap()},1000)}
 function stopTmr(){clearInterval(tmrI);$('tmr').textContent='0:00';$('tmr').className='timer'}
-function triggerCap(){cap=true;if(dc?.readyState==='open'){dc.send(JSON.stringify({type:'response.create',response:{modalities:['text','audio'],instructions:`We've been talking ${MAX_MINS} min. Wrap up warmly.`}}));bye=true}}
+function triggerCap(){cap=true;if(dc?.readyState==='open'){dc.send(JSON.stringify({type:'conversation.item.create',item:{type:'message',role:'system',content:[{type:'input_text',text:'We have been talking '+MAX_MINS+' minutes. Wrap up the conversation warmly.'}]}}));dc.send(JSON.stringify({type:'response.create'}));bye=true}}
 
 // Words
 function mkW(t){const c=t.replace(/^[""'«(]+|[.,!?;:""'»)—-]+$/g,'');const e=document.createElement('span');e.className='w'+(c&&isPt(c)?' pt':'');e.textContent=t;if(c){e.dataset.word=c;e.addEventListener('click',ev=>{ev.stopPropagation();showTip(c,e)})}return e}
@@ -215,8 +215,7 @@ try{const sr=await fetch('/session',{method:'POST',headers:{'Content-Type':'appl
 stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
 pc=new RTCPeerConnection();pc.ontrack=e=>{$('aud').srcObject=e.streams[0]};stream.getTracks().forEach(t=>pc.addTrack(t,stream));dc=pc.createDataChannel('oai-events');
 dc.onopen=()=>{state='live';setBtn('live');setSt('Listening…','listen');startTmr();$('modeTog').classList.add('show');startRein();
-dc.send(JSON.stringify({type:'session.update',session:{type:'realtime',turn_detection:{type:'semantic_vad',eagerness:'low'},input_audio_transcription:{model:'whisper-1'}}}));
-setTimeout(()=>dc.send(JSON.stringify({type:'response.create',response:{modalities:['text','audio']}})),400)};
+setTimeout(()=>dc.send(JSON.stringify({type:'response.create'})),400)};
 dc.onmessage=e=>{try{handleEvt(JSON.parse(e.data))}catch(err){console.error('Parse:',err.message)}};
 const offer=await pc.createOffer();await pc.setLocalDescription(offer);const model=sd.model||'gpt-realtime-mini';
 const sdpR=await fetch(`https://api.openai.com/v1/realtime/calls?model=${encodeURIComponent(model)}`,{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/sdp'},body:offer.sdp});
