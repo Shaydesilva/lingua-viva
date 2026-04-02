@@ -207,7 +207,6 @@ app.post('/session', async (req, res) => {
         session: {
           type: 'realtime', model, instructions,
           audio: { output: { voice: 'marin' } },
-          turn_detection: { type: 'semantic_vad', eagerness: 'low' },
           input_audio_transcription: { model: 'whisper-1' },
         },
       }),
@@ -262,7 +261,6 @@ app.post('/session/interpret', async (req, res) => {
         session: {
           type: 'realtime', model, instructions,
           audio: { output: { voice: 'shimmer' } },
-          turn_detection: { type: 'server_vad', threshold: 0.7, prefix_padding_ms: 300, silence_duration_ms: 1000 },
           input_audio_transcription: { model: 'whisper-1' },
         },
       }),
