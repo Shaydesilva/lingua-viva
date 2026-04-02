@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    :root{--bg:#FAF7F2;--bg2:#F3EDE4;--card:#FFF;--border:#E8E0D4;--text:#2C2825;--text2:#7A7067;--text3:#A69E94;--accent:#C4654A;--accent-l:#F2DDD6;--pt:#B8860B;--pt-bg:#FDF6E3;--green:#5A8A6A;--green-l:#E8F0EB;--blue:#4A7CC4;--blue-l:#E0ECF8}
+    :root{--bg:#FAF7F2;--bg2:#F3EDE4;--card:#FFF;--border:#E8E0D4;--text:#2C2825;--text2:#7A7067;--text3:#A69E94;--accent:#C4654A;--accent-l:#F2DDD6;--pt:#B8860B;--pt-bg:#FDF6E3;--green:#5A8A6A;--green-l:#E8F0EB;--blue:#4A7CC4;--blue-bg:#E0ECF8}
     html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Source Sans 3',sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden}
     #app{display:flex;flex-direction:column;height:100dvh;max-width:600px;margin:0 auto;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
 
@@ -32,20 +32,23 @@
 
     /* Chat feed */
     #chat{flex:1;overflow-y:auto;padding:16px 20px;display:none;flex-direction:column;gap:10px;-webkit-overflow-scrolling:touch}
+
+    /* Spoken = your speech, right aligned, coral */
     .msg{max-width:88%;display:flex;flex-direction:column;animation:fadeUp .2s ease}
     .msg.spoken{align-self:flex-end;align-items:flex-end}
-    .msg.translated{align-self:flex-start}
-    .msg.pending{align-self:flex-start;opacity:.7}
+    .spoken .bubble{padding:10px 14px;border-radius:18px;border-bottom-right-radius:4px;font-size:15px;line-height:1.5;background:var(--accent);color:#fff}
+
+    /* Translation bubbles — colored by language */
+    .msg.tl{align-self:flex-start}
+    .tl .bubble{padding:10px 14px;border-radius:18px;border-bottom-left-radius:4px;font-size:15px;line-height:1.5}
+    .tl.tl-pt .bubble{background:var(--pt-bg);border:1px solid #E0D0A0;color:#6B5300}
+    .tl.tl-en .bubble{background:var(--blue-bg);border:1px solid #B8D0EC;color:#2A5A8C}
+
+    /* Pending (streaming) — neutral gray */
+    .msg.pending{align-self:flex-start}
+    .pending .bubble{padding:10px 14px;border-radius:18px;border-bottom-left-radius:4px;font-size:15px;line-height:1.5;background:var(--bg2);border:1px dashed var(--border);color:var(--text3)}
+
     @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
-
-    .bubble{padding:10px 14px;border-radius:18px;font-size:15px;line-height:1.5}
-    .spoken .bubble{background:var(--accent);color:#fff;border-bottom-right-radius:4px}
-    .translated .bubble{background:var(--card);border:1px solid var(--border);color:var(--text);border-bottom-left-radius:4px}
-    .pending .bubble{background:var(--bg2);border:1px dashed var(--border);color:var(--text3);border-bottom-left-radius:4px}
-
-    .lang-badge{display:inline-block;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:10px;margin-bottom:3px}
-    .badge-en{background:var(--blue-l);color:var(--blue)}
-    .badge-pt{background:var(--pt-bg);color:var(--pt)}
 
     /* Status bar */
     #sbar{flex-shrink:0;padding:10px 20px;display:none;align-items:center;gap:8px;border-top:1px solid var(--border)}
@@ -56,10 +59,10 @@
     #stxt{font-size:13px;color:var(--text3);flex:1}
     .end-btn{padding:8px 16px;border:1px solid var(--border);border-radius:10px;background:var(--bg2);font-family:inherit;font-size:13px;font-weight:500;color:var(--text2);cursor:pointer}
 
-    /* Hold button for tap mode */
-    #holdBtn{display:none;flex-shrink:0;padding:16px 20px}
-    #holdBtn button{width:100%;padding:16px;border:1.5px dashed var(--border);border-radius:14px;background:transparent;font-family:inherit;font-size:15px;font-weight:600;color:var(--text3);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:all .1s;user-select:none;-webkit-user-select:none}
-    #holdBtn button.held{background:var(--green-l);border-color:var(--green);border-style:solid;color:var(--green)}
+    /* Hold button */
+    #holdWrap{display:none;flex-shrink:0;padding:8px 20px 16px}
+    .hold-btn{width:100%;padding:16px;border:1.5px dashed var(--border);border-radius:14px;background:transparent;font-family:inherit;font-size:15px;font-weight:600;color:var(--text3);cursor:pointer;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none}
+    .hold-btn.held{background:var(--green-l);border-color:var(--green);border-style:solid;color:var(--green)}
 
     .banner{position:fixed;top:60px;left:16px;right:16px;max-width:568px;margin:0 auto;padding:10px 16px;background:var(--accent-l);border:1px solid var(--accent);border-radius:10px;text-align:center;font-size:13px;color:var(--accent);font-weight:500;z-index:50;opacity:0;transform:translateY(-10px);transition:all .2s;pointer-events:none}
     .banner.show{opacity:1;transform:translateY(0)}
@@ -85,8 +88,8 @@
 
   <div id="chat"></div>
 
-  <div id="holdBtn">
-    <button ontouchstart="holdOn(event)" ontouchend="holdOff(event)" onmousedown="holdOn(event)" onmouseup="holdOff(event)" id="hBtn">Hold to speak</button>
+  <div id="holdWrap">
+    <button class="hold-btn" id="hBtn" ontouchstart="holdOn(event)" ontouchend="holdOff(event)" onmousedown="holdOn(event)" onmouseup="holdOff(event)">Hold to speak</button>
   </div>
 
   <div id="sbar">
@@ -110,7 +113,7 @@ function $(id){return document.getElementById(id)}
 
 // ── Language detection ──
 var PT_RE=/[ãõâêîôûçáéíóúàü]/i;
-var PT_SET=new Set(['tá','né','tô','cê','cara','gente','assim','então','tipo','nossa','oi','tchau','obrigado','legal','saudade','praia','poxa','beleza','valeu','falou','não','sim','muito','mais','uma','isso','bom','boa','bem','tudo','você','mas','cadê','também','porque','eu','ele','ela','esse','essa','fazer','querer','saber','falar','olhar','pode','preciso','acho','vamos','bora','pô','aqui','ali','lá','meu','minha','como','quando','onde','qual','ter','ser','estar','ir','vir','poder','dar','ver','pegar','ficar','chegar','deixar','passar']);
+var PT_SET=new Set(['tá','né','tô','cê','cara','gente','assim','então','tipo','nossa','oi','tchau','obrigado','legal','saudade','praia','poxa','beleza','valeu','falou','não','sim','muito','mais','uma','isso','bom','boa','bem','tudo','você','mas','cadê','também','porque','eu','ele','ela','esse','essa','fazer','querer','saber','falar','olhar','pode','preciso','acho','vamos','bora','pô','aqui','ali','lá','meu','minha','como','quando','onde','qual','ter','ser','estar','ir','vir','poder','dar','ver','pegar','ficar','chegar','deixar','passar','ainda','já','sempre','nunca','depois','antes','entre','sobre','pelo','pela','todo','toda','outro','outra','mesmo','mesma']);
 
 function isPt(text){
   var words=text.toLowerCase().replace(/[.,!?;:'"()\-]/g,'').split(/\s+/).filter(Boolean);
@@ -133,35 +136,28 @@ function isEcho(text){
 function trackOutput(t){recentOutputs.push(t);if(recentOutputs.length>4)recentOutputs.shift()}
 
 // ── Display ──
-function addBubble(type,lang,text){
-  var m=document.createElement('div');
-  m.className='msg '+type;
-  var badge=document.createElement('span');
-  badge.className='lang-badge '+(lang==='pt'?'badge-pt':'badge-en');
-  badge.textContent=lang==='pt'?'Portugu\u00eas':'English';
-  var b=document.createElement('div');
-  b.className='bubble';
-  b.textContent=text;
-  m.appendChild(badge);
+function addSpoken(lang,text){
+  var m=document.createElement('div');m.className='msg spoken';
+  var b=document.createElement('div');b.className='bubble';b.textContent=text;
   m.appendChild(b);
   $('chat').appendChild(m);
   $('chat').scrollTop=$('chat').scrollHeight;
-  return m;
 }
 
-// Create or update a pending (streaming) bubble
+function addTranslation(lang,text){
+  var m=document.createElement('div');m.className='msg tl '+(lang==='pt'?'tl-pt':'tl-en');
+  var b=document.createElement('div');b.className='bubble';b.textContent=text;
+  m.appendChild(b);
+  $('chat').appendChild(m);
+  $('chat').scrollTop=$('chat').scrollHeight;
+}
+
+// Pending bubble: starts gray, lives in #chat, updates in place
 function ensurePending(){
   if(!pendingEl){
-    pendingEl=document.createElement('div');
-    pendingEl.className='msg pending';
-    var badge=document.createElement('span');
-    var tLang=lastInputSide==='en'?'pt':'en';
-    badge.className='lang-badge '+(tLang==='pt'?'badge-pt':'badge-en');
-    badge.textContent=tLang==='pt'?'Portugu\u00eas':'English';
-    pendingBubble=document.createElement('div');
-    pendingBubble.className='bubble';
+    pendingEl=document.createElement('div');pendingEl.className='msg pending';
+    pendingBubble=document.createElement('div');pendingBubble.className='bubble';
     pendingBubble.textContent='...';
-    pendingEl.appendChild(badge);
     pendingEl.appendChild(pendingBubble);
     $('chat').appendChild(pendingEl);
   }
@@ -169,20 +165,23 @@ function ensurePending(){
 }
 
 function finalizePending(text){
+  // Detect language from the OUTPUT text itself — not from lastInputSide
+  var outputIsPt=isPt(text);
+
   if(pendingEl){
-    // Convert pending to finalized translated bubble
-    pendingEl.className='msg translated';
-    pendingEl.style.opacity='1';
-    pendingBubble.textContent=text;
+    // Promote pending to colored translation
+    pendingEl.className='msg tl '+(outputIsPt?'tl-pt':'tl-en');
     pendingBubble.className='bubble';
+    pendingBubble.textContent=text;
     $('chat').scrollTop=$('chat').scrollHeight;
-    pendingEl=null;
-    pendingBubble=null;
+    pendingEl=null;pendingBubble=null;
   }else{
-    // No pending element — create a new finalized bubble
-    var tLang=lastInputSide==='en'?'pt':'en';
-    addBubble('translated',tLang,text);
+    addTranslation(outputIsPt?'pt':'en',text);
   }
+}
+
+function removePending(){
+  if(pendingEl){pendingEl.remove();pendingEl=null;pendingBubble=null}
 }
 
 function showBanner(msg){
@@ -196,7 +195,7 @@ function setMode(m){
   $('mAuto').className='mode-opt'+(m==='auto'?' on':'');
   $('mTap').className='mode-opt'+(m==='tap'?' on':'');
   if(state==='live'){
-    $('holdBtn').style.display=m==='tap'?'block':'none';
+    $('holdWrap').style.display=m==='tap'?'block':'none';
     if(stream){stream.getAudioTracks().forEach(function(t){t.enabled=(m==='auto')})}
   }
 }
@@ -206,18 +205,15 @@ function holdOn(e){
   if(mode!=='tap'||!stream)return;
   holding=true;
   stream.getAudioTracks().forEach(function(t){t.enabled=true});
-  $('hBtn').classList.add('held');
-  $('hBtn').textContent='Listening...';
+  $('hBtn').classList.add('held');$('hBtn').textContent='Listening...';
   $('stxt').textContent='Listening...';
 }
-
 function holdOff(e){
   e.preventDefault();
   if(mode!=='tap'||!stream)return;
   holding=false;
   stream.getAudioTracks().forEach(function(t){t.enabled=false});
-  $('hBtn').classList.remove('held');
-  $('hBtn').textContent='Hold to speak';
+  $('hBtn').classList.remove('held');$('hBtn').textContent='Hold to speak';
   $('stxt').textContent='Ready';
 }
 
@@ -226,7 +222,7 @@ function handleEvt(e){
   if(!e||!e.type)return;
   switch(e.type){
 
-  // Translation streaming in — write directly into pending bubble
+  // Translation streaming — write into pending bubble
   case 'response.output_audio_transcript.delta':
   case 'response.audio_transcript.delta':
     if(e.delta){
@@ -239,41 +235,31 @@ function handleEvt(e){
     }
     break;
 
-  // Translation complete — finalize the pending bubble
+  // Translation done — finalize with color based on output language
   case 'response.output_audio_transcript.done':
   case 'response.audio_transcript.done':
     var text=outputBuf.trim();
     outputBuf='';
-    if(text){
-      trackOutput(text);
-      finalizePending(text);
-    }else if(pendingEl){
-      // Empty translation — remove pending
-      pendingEl.remove();pendingEl=null;pendingBubble=null;
-    }
+    if(text){trackOutput(text);finalizePending(text)}
+    else{removePending()}
     $('dot').className='dot on';
     $('stxt').textContent=mode==='tap'?'Ready':'Listening...';
     break;
 
   case 'response.done':
-    // Safety flush
-    if(outputBuf.trim()){
-      var t2=outputBuf.trim();outputBuf='';
-      trackOutput(t2);finalizePending(t2);
-    }else if(pendingEl){
-      pendingEl.remove();pendingEl=null;pendingBubble=null;
-    }
+    if(outputBuf.trim()){var t2=outputBuf.trim();outputBuf='';trackOutput(t2);finalizePending(t2)}
+    else{removePending()}
     $('dot').className='dot on';
     $('stxt').textContent=mode==='tap'?'Ready':'Listening...';
     break;
 
-  // User speech transcribed — add as spoken bubble
+  // User speech transcribed — coral bubble on right
   case 'conversation.item.input_audio_transcription.completed':
     var it=e.transcript?e.transcript.trim():'';
     if(!it)break;
     if(isEcho(it))break;
     lastInputSide=isPt(it)?'pt':'en';
-    addBubble('spoken',lastInputSide,it);
+    addSpoken(lastInputSide,it);
     break;
 
   case 'input_audio_buffer.speech_started':
@@ -288,8 +274,7 @@ function handleEvt(e){
   case 'error':
     console.error('RT error:',JSON.stringify(e));
     showBanner('Didn\'t catch that \u2014 please repeat');
-    outputBuf='';
-    if(pendingEl){pendingEl.remove();pendingEl=null;pendingBubble=null}
+    outputBuf='';removePending();
     break;
   }
 }
@@ -325,7 +310,7 @@ async function startInterpret(){
       $('setup').style.display='none';
       $('chat').style.display='flex';
       $('sbar').style.display='flex';
-      if(mode==='tap')$('holdBtn').style.display='block';
+      if(mode==='tap')$('holdWrap').style.display='block';
       $('dot').className='dot on';
       $('stxt').textContent=mode==='tap'?'Ready':'Listening...';
 
@@ -375,15 +360,11 @@ function endInterpret(){
   if(pc){try{pc.close()}catch(e){}pc=null}
   if(stream){stream.getTracks().forEach(function(t){t.stop()});stream=null}
   $('aud').srcObject=null;
-  $('chat').style.display='none';
-  $('sbar').style.display='none';
-  $('holdBtn').style.display='none';
+  $('chat').style.display='none';$('sbar').style.display='none';$('holdWrap').style.display='none';
   $('setup').style.display='flex';
-  $('startBtn').disabled=false;
-  $('startBtn').textContent='Start Interpreting';
+  $('startBtn').disabled=false;$('startBtn').textContent='Start Interpreting';
   $('chat').innerHTML='';
-  $('hBtn').classList.remove('held');
-  $('hBtn').textContent='Hold to speak';
+  $('hBtn').classList.remove('held');$('hBtn').textContent='Hold to speak';
   lastInputSide=null;outputBuf='';recentOutputs=[];pendingEl=null;pendingBubble=null;
 }
 </script>
