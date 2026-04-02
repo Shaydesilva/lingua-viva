@@ -10,7 +10,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    :root{--bg:#FAF7F2;--bg2:#F3EDE4;--card:#FFF;--border:#E8E0D4;--text:#2C2825;--text2:#7A7067;--text3:#A69E94;--accent:#C4654A;--accent-l:#F2DDD6;--pt:#B8860B;--pt-bg:#FDF6E3;--green:#5A8A6A;--blue:#4A7CC4;--blue-l:#E0ECF8}
+    :root{--bg:#FAF7F2;--bg2:#F3EDE4;--card:#FFF;--border:#E8E0D4;--text:#2C2825;--text2:#7A7067;--text3:#A69E94;--accent:#C4654A;--accent-l:#F2DDD6;--pt:#B8860B;--pt-bg:#FDF6E3;--green:#5A8A6A;--green-l:#E8F0EB;--blue:#4A7CC4;--blue-l:#E0ECF8}
     html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Source Sans 3',sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden}
     #app{display:flex;flex-direction:column;height:100dvh;max-width:600px;margin:0 auto;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
 
@@ -21,7 +21,6 @@
     .mode-opt{padding:4px 11px;border-radius:18px;font-size:11px;font-weight:600;color:var(--text3);cursor:pointer}
     .mode-opt.on{background:var(--card);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.08)}
 
-    /* Setup */
     #setup{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px 24px;gap:20px}
     #setup h2{font-family:'Instrument Serif',serif;font-size:26px;font-style:italic;font-weight:400;text-align:center}
     #setup p{font-size:14px;color:var(--text3);text-align:center;line-height:1.5;max-width:300px}
@@ -31,23 +30,22 @@
     .start-btn:active{transform:scale(.97)}
     .start-btn:disabled{opacity:.4}
 
-    /* Chat feed — mirrors main Luna exactly */
+    /* Chat feed */
     #chat{flex:1;overflow-y:auto;padding:16px 20px;display:none;flex-direction:column;gap:10px;-webkit-overflow-scrolling:touch}
     .msg{max-width:88%;display:flex;flex-direction:column;animation:fadeUp .2s ease}
     .msg.spoken{align-self:flex-end;align-items:flex-end}
     .msg.translated{align-self:flex-start}
+    .msg.pending{align-self:flex-start;opacity:.7}
     @keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 
     .bubble{padding:10px 14px;border-radius:18px;font-size:15px;line-height:1.5}
     .spoken .bubble{background:var(--accent);color:#fff;border-bottom-right-radius:4px}
     .translated .bubble{background:var(--card);border:1px solid var(--border);color:var(--text);border-bottom-left-radius:4px}
+    .pending .bubble{background:var(--bg2);border:1px dashed var(--border);color:var(--text3);border-bottom-left-radius:4px}
 
-    .lang-badge{display:inline-block;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:10px;margin-bottom:4px}
+    .lang-badge{display:inline-block;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:10px;margin-bottom:3px}
     .badge-en{background:var(--blue-l);color:var(--blue)}
     .badge-pt{background:var(--pt-bg);color:var(--pt)}
-
-    /* Live streaming area — mirrors main Luna */
-    #live{flex-shrink:0;min-height:30px;padding:6px 20px 4px;font-size:15px;line-height:1.5;color:var(--text3);display:none}
 
     /* Status bar */
     #sbar{flex-shrink:0;padding:10px 20px;display:none;align-items:center;gap:8px;border-top:1px solid var(--border)}
@@ -58,14 +56,11 @@
     #stxt{font-size:13px;color:var(--text3);flex:1}
     .end-btn{padding:8px 16px;border:1px solid var(--border);border-radius:10px;background:var(--bg2);font-family:inherit;font-size:13px;font-weight:500;color:var(--text2);cursor:pointer}
 
-    /* Tap controls */
-    #tapCtrl{flex-shrink:0;display:none;gap:8px;padding:8px 20px 16px}
-    .tap-btn{flex:1;padding:14px;border:1.5px dashed var(--border);border-radius:14px;background:transparent;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;text-align:center;-webkit-tap-highlight-color:transparent;transition:all .1s}
-    .tap-btn.held{border-style:solid}
-    .tap-en{color:var(--blue)}.tap-en.held{background:var(--blue-l);border-color:var(--blue)}
-    .tap-pt{color:var(--pt)}.tap-pt.held{background:var(--pt-bg);border-color:var(--pt)}
+    /* Hold button for tap mode */
+    #holdBtn{display:none;flex-shrink:0;padding:16px 20px}
+    #holdBtn button{width:100%;padding:16px;border:1.5px dashed var(--border);border-radius:14px;background:transparent;font-family:inherit;font-size:15px;font-weight:600;color:var(--text3);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:all .1s;user-select:none;-webkit-user-select:none}
+    #holdBtn button.held{background:var(--green-l);border-color:var(--green);border-style:solid;color:var(--green)}
 
-    /* Banner */
     .banner{position:fixed;top:60px;left:16px;right:16px;max-width:568px;margin:0 auto;padding:10px 16px;background:var(--accent-l);border:1px solid var(--accent);border-radius:10px;text-align:center;font-size:13px;color:var(--accent);font-weight:500;z-index:50;opacity:0;transform:translateY(-10px);transition:all .2s;pointer-events:none}
     .banner.show{opacity:1;transform:translateY(0)}
   </style>
@@ -83,17 +78,15 @@
 
   <div id="setup">
     <h2>Live Interpreter</h2>
-    <p>Translates between you and a Portuguese speaker in real-time. Speak naturally &#8212; translations appear as chat bubbles.</p>
+    <p>Translates between you and a Portuguese speaker in real-time.</p>
     <input class="ctx-input" id="ctxInput" type="text" placeholder="Context? e.g. ordering at a restaurant"/>
     <button class="start-btn" id="startBtn" onclick="startInterpret()">Start Interpreting</button>
   </div>
 
   <div id="chat"></div>
-  <div id="live"></div>
 
-  <div id="tapCtrl">
-    <button class="tap-btn tap-en" id="tapEn" ontouchstart="tapOn('en',event)" ontouchend="tapOff(event)" onmousedown="tapOn('en',event)" onmouseup="tapOff(event)">Hold &#8212; English</button>
-    <button class="tap-btn tap-pt" id="tapPt" ontouchstart="tapOn('pt',event)" ontouchend="tapOff(event)" onmousedown="tapOn('pt',event)" onmouseup="tapOff(event)">Segure &#8212; Portugu&#234;s</button>
+  <div id="holdBtn">
+    <button ontouchstart="holdOn(event)" ontouchend="holdOff(event)" onmousedown="holdOn(event)" onmouseup="holdOff(event)" id="hBtn">Hold to speak</button>
   </div>
 
   <div id="sbar">
@@ -109,9 +102,9 @@
 
 <script>
 var pc=null,dc=null,stream=null,state='idle',mode='auto';
-var tapLang=null,lastInputSide=null;
-var outputBuf='',reinforceInt=null;
-var recentOutputs=[];
+var lastInputSide=null,holding=false;
+var outputBuf='',pendingEl=null,pendingBubble=null;
+var reinforceInt=null,recentOutputs=[];
 
 function $(id){return document.getElementById(id)}
 
@@ -121,14 +114,9 @@ var PT_SET=new Set(['tá','né','tô','cê','cara','gente','assim','então','tip
 
 function isPt(text){
   var words=text.toLowerCase().replace(/[.,!?;:'"()\-]/g,'').split(/\s+/).filter(Boolean);
-  var ptCount=0;
-  for(var i=0;i<words.length;i++){if(PT_RE.test(words[i])||PT_SET.has(words[i]))ptCount++}
-  return (ptCount/Math.max(words.length,1))>0.3;
-}
-
-function whichSide(text){
-  if(mode==='tap'&&tapLang)return tapLang;
-  return isPt(text)?'pt':'en';
+  var c=0;
+  for(var i=0;i<words.length;i++){if(PT_RE.test(words[i])||PT_SET.has(words[i]))c++}
+  return(c/Math.max(words.length,1))>0.3;
 }
 
 // ── Echo detection ──
@@ -142,54 +130,64 @@ function isEcho(text){
   }
   return false;
 }
-function trackOutput(t){recentOutputs.push(t);if(recentOutputs.length>3)recentOutputs.shift()}
+function trackOutput(t){recentOutputs.push(t);if(recentOutputs.length>4)recentOutputs.shift()}
 
-// ── Display — mirrors main Luna ──
+// ── Display ──
 function addBubble(type,lang,text){
-  // type: 'spoken' (user said it) or 'translated' (model translation)
   var m=document.createElement('div');
   m.className='msg '+type;
-
   var badge=document.createElement('span');
   badge.className='lang-badge '+(lang==='pt'?'badge-pt':'badge-en');
   badge.textContent=lang==='pt'?'Portugu\u00eas':'English';
-
   var b=document.createElement('div');
   b.className='bubble';
   b.textContent=text;
-
   m.appendChild(badge);
   m.appendChild(b);
   $('chat').appendChild(m);
   $('chat').scrollTop=$('chat').scrollHeight;
+  return m;
+}
+
+// Create or update a pending (streaming) bubble
+function ensurePending(){
+  if(!pendingEl){
+    pendingEl=document.createElement('div');
+    pendingEl.className='msg pending';
+    var badge=document.createElement('span');
+    var tLang=lastInputSide==='en'?'pt':'en';
+    badge.className='lang-badge '+(tLang==='pt'?'badge-pt':'badge-en');
+    badge.textContent=tLang==='pt'?'Portugu\u00eas':'English';
+    pendingBubble=document.createElement('div');
+    pendingBubble.className='bubble';
+    pendingBubble.textContent='...';
+    pendingEl.appendChild(badge);
+    pendingEl.appendChild(pendingBubble);
+    $('chat').appendChild(pendingEl);
+  }
+  return pendingBubble;
+}
+
+function finalizePending(text){
+  if(pendingEl){
+    // Convert pending to finalized translated bubble
+    pendingEl.className='msg translated';
+    pendingEl.style.opacity='1';
+    pendingBubble.textContent=text;
+    pendingBubble.className='bubble';
+    $('chat').scrollTop=$('chat').scrollHeight;
+    pendingEl=null;
+    pendingBubble=null;
+  }else{
+    // No pending element — create a new finalized bubble
+    var tLang=lastInputSide==='en'?'pt':'en';
+    addBubble('translated',tLang,text);
+  }
 }
 
 function showBanner(msg){
   $('banner').textContent=msg;$('banner').classList.add('show');
   setTimeout(function(){$('banner').classList.remove('show')},3000);
-}
-
-// ── Live streaming (mirrors main Luna's onD/onDone) ──
-function onDelta(d){
-  outputBuf+=d;
-  $('live').textContent=outputBuf;
-  $('live').style.display='block';
-}
-
-function onDone(){
-  var text=outputBuf.trim();
-  outputBuf='';
-  $('live').textContent='';
-  $('live').style.display='none';
-
-  if(!text)return;
-  trackOutput(text);
-
-  // Translation goes on opposite side from last input
-  if(lastInputSide){
-    var tLang=lastInputSide==='en'?'pt':'en';
-    addBubble('translated',tLang,text);
-  }
 }
 
 // ── Mode ──
@@ -198,65 +196,84 @@ function setMode(m){
   $('mAuto').className='mode-opt'+(m==='auto'?' on':'');
   $('mTap').className='mode-opt'+(m==='tap'?' on':'');
   if(state==='live'){
-    $('tapCtrl').style.display=m==='tap'?'flex':'none';
+    $('holdBtn').style.display=m==='tap'?'block':'none';
     if(stream){stream.getAudioTracks().forEach(function(t){t.enabled=(m==='auto')})}
   }
 }
 
-function tapOn(lang,e){
+function holdOn(e){
   e.preventDefault();
   if(mode!=='tap'||!stream)return;
-  tapLang=lang;
+  holding=true;
   stream.getAudioTracks().forEach(function(t){t.enabled=true});
-  (lang==='en'?$('tapEn'):$('tapPt')).classList.add('held');
-  $('stxt').textContent=lang==='en'?'Listening (English)...':'Ouvindo (Portugu\u00eas)...';
-}
-function tapOff(e){
-  e.preventDefault();
-  if(mode!=='tap'||!stream)return;
-  stream.getAudioTracks().forEach(function(t){t.enabled=false});
-  $('tapEn').classList.remove('held');
-  $('tapPt').classList.remove('held');
+  $('hBtn').classList.add('held');
+  $('hBtn').textContent='Listening...';
   $('stxt').textContent='Listening...';
 }
 
-// ── Events — same structure as main Luna ──
+function holdOff(e){
+  e.preventDefault();
+  if(mode!=='tap'||!stream)return;
+  holding=false;
+  stream.getAudioTracks().forEach(function(t){t.enabled=false});
+  $('hBtn').classList.remove('held');
+  $('hBtn').textContent='Hold to speak';
+  $('stxt').textContent='Ready';
+}
+
+// ── Events ──
 function handleEvt(e){
   if(!e||!e.type)return;
   switch(e.type){
 
-  // Model translation streaming in (same as main Luna's onD)
+  // Translation streaming in — write directly into pending bubble
   case 'response.output_audio_transcript.delta':
   case 'response.audio_transcript.delta':
     if(e.delta){
-      onDelta(e.delta);
+      outputBuf+=e.delta;
+      var pb=ensurePending();
+      pb.textContent=outputBuf;
+      $('chat').scrollTop=$('chat').scrollHeight;
       $('dot').className='dot speak';
       $('stxt').textContent='Translating...';
     }
     break;
 
-  // Model translation complete (same as main Luna's onDone)
+  // Translation complete — finalize the pending bubble
   case 'response.output_audio_transcript.done':
   case 'response.audio_transcript.done':
-    onDone();
+    var text=outputBuf.trim();
+    outputBuf='';
+    if(text){
+      trackOutput(text);
+      finalizePending(text);
+    }else if(pendingEl){
+      // Empty translation — remove pending
+      pendingEl.remove();pendingEl=null;pendingBubble=null;
+    }
     $('dot').className='dot on';
-    $('stxt').textContent='Listening...';
+    $('stxt').textContent=mode==='tap'?'Ready':'Listening...';
     break;
 
   case 'response.done':
-    // Safety: flush any remaining buffer
-    if(outputBuf.trim()){onDone()}
+    // Safety flush
+    if(outputBuf.trim()){
+      var t2=outputBuf.trim();outputBuf='';
+      trackOutput(t2);finalizePending(t2);
+    }else if(pendingEl){
+      pendingEl.remove();pendingEl=null;pendingBubble=null;
+    }
     $('dot').className='dot on';
-    $('stxt').textContent='Listening...';
+    $('stxt').textContent=mode==='tap'?'Ready':'Listening...';
     break;
 
-  // User speech transcribed (same event as main Luna)
+  // User speech transcribed — add as spoken bubble
   case 'conversation.item.input_audio_transcription.completed':
-    var t=e.transcript?e.transcript.trim():'';
-    if(!t)break;
-    if(isEcho(t))break;
-    lastInputSide=whichSide(t);
-    addBubble('spoken',lastInputSide,t);
+    var it=e.transcript?e.transcript.trim():'';
+    if(!it)break;
+    if(isEcho(it))break;
+    lastInputSide=isPt(it)?'pt':'en';
+    addBubble('spoken',lastInputSide,it);
     break;
 
   case 'input_audio_buffer.speech_started':
@@ -271,6 +288,8 @@ function handleEvt(e){
   case 'error':
     console.error('RT error:',JSON.stringify(e));
     showBanner('Didn\'t catch that \u2014 please repeat');
+    outputBuf='';
+    if(pendingEl){pendingEl.remove();pendingEl=null;pendingBubble=null}
     break;
   }
 }
@@ -302,20 +321,18 @@ async function startInterpret(){
 
     dc.onopen=function(){
       state='live';
-      recentOutputs=[];
-      outputBuf='';
+      recentOutputs=[];outputBuf='';pendingEl=null;pendingBubble=null;
       $('setup').style.display='none';
       $('chat').style.display='flex';
-      $('live').style.display='none';
       $('sbar').style.display='flex';
-      if(mode==='tap')$('tapCtrl').style.display='flex';
+      if(mode==='tap')$('holdBtn').style.display='block';
       $('dot').className='dot on';
-      $('stxt').textContent='Listening...';
+      $('stxt').textContent=mode==='tap'?'Ready':'Listening...';
 
-      // Enable transcription (same pattern as main Luna)
+      // Enable transcription
       dc.send(JSON.stringify({type:'session.update',session:{type:'realtime',input_audio_transcription:{model:'whisper-1'}}}));
 
-      // Tap mode: mic off. Auto: mic on.
+      // Tap mode: mic off until held
       if(mode==='tap'){stream.getAudioTracks().forEach(function(t){t.enabled=false})}
 
       // Reinforcement every 30s
@@ -352,21 +369,22 @@ async function startInterpret(){
 }
 
 function endInterpret(){
-  state='idle';
+  state='idle';holding=false;
   clearInterval(reinforceInt);
   if(dc){try{dc.close()}catch(e){}dc=null}
   if(pc){try{pc.close()}catch(e){}pc=null}
   if(stream){stream.getTracks().forEach(function(t){t.stop()});stream=null}
   $('aud').srcObject=null;
   $('chat').style.display='none';
-  $('live').style.display='none';
   $('sbar').style.display='none';
-  $('tapCtrl').style.display='none';
+  $('holdBtn').style.display='none';
   $('setup').style.display='flex';
   $('startBtn').disabled=false;
   $('startBtn').textContent='Start Interpreting';
   $('chat').innerHTML='';
-  lastInputSide=null;outputBuf='';recentOutputs=[];
+  $('hBtn').classList.remove('held');
+  $('hBtn').textContent='Hold to speak';
+  lastInputSide=null;outputBuf='';recentOutputs=[];pendingEl=null;pendingBubble=null;
 }
 </script>
 </body>
