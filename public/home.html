@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="theme-color" content="#FAF7F2"/>
+  <title>Luna</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Source+Sans+3:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--bg:#FAF7F2;--bg2:#F3EDE4;--card:#FFF;--border:#E8E0D4;--text:#2C2825;--text2:#7A7067;--text3:#A69E94;--accent:#C4654A;--accent-l:#F2DDD6;--pt:#B8860B;--pt-bg:#FDF6E3;--green:#5A8A6A;--green-l:#E8F0EB;--blue:#4A7CC4;--blue-l:#E0ECF8}
+    html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Source Sans 3',sans-serif;-webkit-font-smoothing:antialiased}
+    #app{display:flex;flex-direction:column;align-items:center;min-height:100dvh;max-width:600px;margin:0 auto;padding:env(safe-area-inset-top,40px) 24px 40px}
+    .logo{font-family:'Instrument Serif',serif;font-size:38px;font-style:italic;letter-spacing:-.02em;margin:48px 0 8px}
+    .tagline{font-size:14px;color:var(--text3);margin-bottom:36px}
+    .cards{width:100%;display:flex;flex-direction:column;gap:12px}
+    .card{display:flex;align-items:center;gap:16px;padding:18px 20px;background:var(--card);border:1px solid var(--border);border-radius:16px;text-decoration:none;color:var(--text);transition:transform .1s,box-shadow .15s;-webkit-tap-highlight-color:transparent}
+    .card:active{transform:scale(.98);box-shadow:0 2px 12px rgba(0,0,0,.06)}
+    .card-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+    .card-icon.talk{background:var(--accent-l)}
+    .card-icon.revise{background:var(--green-l)}
+    .card-icon.interpret{background:var(--blue-l)}
+    .card-icon.v2{background:#F0E6F6}
+    .card-text{flex:1}
+    .card-title{font-size:16px;font-weight:600;margin-bottom:2px}
+    .card-desc{font-size:13px;color:var(--text3);line-height:1.4}
+    .card-badge{flex-shrink:0;font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px}
+    .badge-due{background:var(--pt-bg);color:var(--pt)}
+    .badge-exp{background:#F0E6F6;color:#8B5CF6}
+    .footer{margin-top:auto;padding-top:32px;text-align:center}
+    .footer-stat{font-size:13px;color:var(--text3);line-height:1.6}
+    .footer-stat strong{color:var(--text);font-weight:600}
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="logo">Luna</div>
+  <div class="tagline">Your Portuguese companion</div>
+
+  <div class="cards">
+    <a class="card" href="/index.html">
+      <div class="card-icon talk">&#128172;</div>
+      <div class="card-text">
+        <div class="card-title">Talk</div>
+        <div class="card-desc">Practice Portuguese through conversation</div>
+      </div>
+    </a>
+
+    <a class="card" href="/revise.html" id="reviseCard">
+      <div class="card-icon revise">&#128260;</div>
+      <div class="card-text">
+        <div class="card-title">Revise</div>
+        <div class="card-desc">Review your vocabulary</div>
+      </div>
+      <span class="card-badge badge-due" id="dueBadge" style="display:none"></span>
+    </a>
+
+    <a class="card" href="/interpret.html">
+      <div class="card-icon interpret">&#127760;</div>
+      <div class="card-text">
+        <div class="card-title">Interpret</div>
+        <div class="card-desc">Live translation between speakers</div>
+      </div>
+    </a>
+
+    <a class="card" href="/v2.html" style="opacity:.5;pointer-events:none">
+      <div class="card-icon v2">&#129514;</div>
+      <div class="card-text">
+        <div class="card-title">Luna V2</div>
+        <div class="card-desc">Experimental — coming soon</div>
+      </div>
+      <span class="card-badge badge-exp">Soon</span>
+    </a>
+  </div>
+
+  <div class="footer" id="footer"></div>
+</div>
+
+<script>
+async function load(){
+  try{
+    // Load due count
+    var dr=await fetch('/vocab/due-count');
+    var dd=await dr.json();
+    if(dd.count>0){
+      var b=document.getElementById('dueBadge');
+      b.textContent=dd.count+' due';
+      b.style.display='inline-block';
+    }
+
+    // Load stats
+    var pr=await fetch('/progress');
+    var pd=await pr.json();
+    if(pd.profile){
+      document.getElementById('footer').innerHTML=
+        '<div class="footer-stat"><strong>'+pd.profile.words_known+'</strong> words known &middot; <strong>'
+        +pd.profile.total_sessions+'</strong> sessions &middot; <strong>'
+        +(pd.profile.current_phase_name||'Survival')+'</strong> phase</div>';
+    }
+  }catch(e){console.error(e)}
+}
+load();
+</script>
+</body>
+</html>
