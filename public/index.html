@@ -215,7 +215,7 @@ try{const sr=await fetch('/session',{method:'POST',headers:{'Content-Type':'appl
 stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
 pc=new RTCPeerConnection();pc.ontrack=e=>{$('aud').srcObject=e.streams[0]};stream.getTracks().forEach(t=>pc.addTrack(t,stream));dc=pc.createDataChannel('oai-events');
 dc.onopen=()=>{state='live';setBtn('live');setSt('Listening…','listen');startTmr();$('modeTog').classList.add('show');startRein();
-dc.send(JSON.stringify({type:'session.update',session:{input_audio_transcription:{model:'whisper-1'}}}));
+dc.send(JSON.stringify({type:'session.update',session:{type:'realtime',input_audio_transcription:{model:'whisper-1'}}}));
 setTimeout(()=>dc.send(JSON.stringify({type:'response.create'})),400)};
 dc.onmessage=e=>{try{handleEvt(JSON.parse(e.data))}catch(err){console.error('Parse:',err.message)}};
 const offer=await pc.createOffer();await pc.setLocalDescription(offer);const model=sd.model||'gpt-realtime-mini';
