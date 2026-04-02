@@ -826,7 +826,7 @@ app.get('/health', async (req, res) => {
   const { data: p } = await supabase.from('user_profile').select('name,total_sessions,words_known,current_phase_name,comprehension_score').eq('user_id', 'default_user').single();
   const { data: m } = await supabase.from('learner_model').select('narrative').eq('user_id', 'default_user').single();
   const { data: plan } = await supabase.from('session_plan').select('plan_text,opening_suggestion').eq('user_id', 'default_user').eq('used', false).order('created_at', { ascending: false }).limit(1).single();
-  res.json({ profile: p, learnerModel: m?.narrative?.slice(0, 200), nextPlan: plan?.plan_text?.slice(0, 200), nextOpening: plan?.opening_suggestion });
+  res.json({ version: '3.1', profile: p, learnerModel: m?.narrative?.slice(0, 200), nextPlan: plan?.plan_text?.slice(0, 200), nextOpening: plan?.opening_suggestion });
 });
 
 const PORT = process.env.PORT || 3000;
@@ -834,4 +834,4 @@ const PORT = process.env.PORT || 3000;
 process.on('uncaughtException', (err) => console.error('UNCAUGHT:', err.message, err.stack));
 process.on('unhandledRejection', (err) => console.error('UNHANDLED:', err));
 
-app.listen(PORT, () => console.log(`Luna V3 running on port ${PORT}`));
+app.listen(PORT, () => console.log(`Luna v3.1 running on port ${PORT}`));
