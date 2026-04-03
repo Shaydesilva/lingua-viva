@@ -107,6 +107,7 @@
 var pc=null,dc=null,stream=null,state='idle';
 var words=[],reviewedCount=0,gotCount=0,wipCount=0;
 var outputBuf='',saActiveEl=null,saActiveWord=null;
+var recorder=null,recChunks=[];
 
 function $(id){return document.getElementById(id)}
 
@@ -234,23 +235,30 @@ function handleEvt(e){
     if(outputBuf.trim()){var t2=outputBuf.trim();outputBuf='';$('live').textContent='';addMsg('luna',t2)}
     $('dot').className='dot on';$('stxt').textContent='Listening...';
     break;
-  case 'conversation.item.input_audio_transcription.completed':
-    var it=e.transcript?e.transcript.trim():'';
-    if(!it)break;
-    addMsg('user',it);
-    // Show assessment card for a word from the review list
-    if(reviewedCount<words.length){
-      showAssessCard(words[reviewedCount].word);
-    }
-    break;
   case 'input_audio_buffer.speech_started':
     $('dot').className='dot on';$('stxt').textContent='Listening...';
     if(saActiveEl){saActiveEl.remove();saActiveEl=null;saActiveWord=null}
+    if(recorder&&recorder.state==='inactive'){try{recChunks=[];recorder.start()}catch(e){}}
+    break;
+  case 'input_audio_buffer.speech_stopped':
+    $('stxt').textContent='Processing...';
+    if(recorder&&recorder.state==='recording'){try{recorder.stop()}catch(e){}}
     break;
   case 'error':
     console.error('RT error:',JSON.stringify(e));
     break;
   }
+}
+
+async function transcribeAudio(blob){
+  try{
+    var res=await fetch('/transcribe',{method:'POST',headers:{'Content-Type':'audio/webm'},body:blob});
+    var d=await res.json();
+    if(d.text&&d.text.trim()){
+      addMsg('user',d.text.trim());
+      if(reviewedCount<words.length){showAssessCard(words[reviewedCount].word)}
+    }
+  }catch(e){console.error('Transcribe:',e)}
 }
 
 // ── Setup ──
@@ -301,7 +309,17 @@ async function startRevise(){
       $('stxt').textContent='Listening...';
       updateProg();
 
-      dc.send(JSON.stringify({type:'session.update',session:{type:'realtime',input_audio_transcription:{model:'whisper-1'}}}));
+      // Init recorder for transcription
+      try{
+        recorder=new MediaRecorder(stream,{mimeType:'audio/webm;codecs=opus'});
+        recorder.ondataavailable=function(e){if(e.data.size>0)recChunks.push(e.data)};
+        recorder.onstop=function(){
+          if(recChunks.length===0)return;
+          var blob=new Blob(recChunks,{type:'audio/webm'});recChunks=[];
+          if(blob.size<2000)return;
+          transcribeAudio(blob);
+        };
+      }catch(e){console.error('Recorder init:',e)}
       setTimeout(function(){dc.send(JSON.stringify({type:'response.create'}))},400);
     };
 
@@ -328,6 +346,7 @@ async function startRevise(){
 
 function endRevise(){
   state='idle';
+  if(recorder){try{recorder.stop()}catch(e){}recorder=null}recChunks=[];
   if(dc){try{dc.close()}catch(e){}dc=null}
   if(pc){try{pc.close()}catch(e){}pc=null}
   if(stream){stream.getTracks().forEach(function(t){t.stop()});stream=null}
