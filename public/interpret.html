@@ -108,7 +108,6 @@ var pc=null,dc=null,stream=null,state='idle',mode='auto';
 var lastInputSide=null,holding=false;
 var outputBuf='',pendingEl=null,pendingBubble=null;
 var reinforceInt=null,recentOutputs=[];
-var recorder=null,recChunks=[];
 
 function $(id){return document.getElementById(id)}
 
@@ -218,20 +217,6 @@ function holdOff(e){
   $('stxt').textContent='Ready';
 }
 
-// ── Transcription via MediaRecorder + Whisper ──
-async function transcribeAudio(blob){
-  try{
-    var res=await fetch('/transcribe',{method:'POST',headers:{'Content-Type':'audio/webm'},body:blob});
-    var d=await res.json();
-    if(d.text&&d.text.trim()){
-      var t=d.text.trim();
-      if(isEcho(t))return;
-      lastInputSide=isPt(t)?'pt':'en';
-      addSpoken(lastInputSide,t);
-    }
-  }catch(e){console.error('Transcribe failed:',e)}
-}
-
 // ── Events ──
 function handleEvt(e){
   if(!e||!e.type)return;
@@ -268,17 +253,22 @@ function handleEvt(e){
     $('stxt').textContent=mode==='tap'?'Ready':'Listening...';
     break;
 
+  // User speech transcribed — coral bubble on right
+  case 'conversation.item.input_audio_transcription.completed':
+    var it=e.transcript?e.transcript.trim():'';
+    if(!it)break;
+    if(isEcho(it))break;
+    lastInputSide=isPt(it)?'pt':'en';
+    addSpoken(lastInputSide,it);
+    break;
+
   case 'input_audio_buffer.speech_started':
     $('dot').className='dot on';
     $('stxt').textContent='Listening...';
-    // Start recording
-    if(recorder&&recorder.state==='inactive'){try{recChunks=[];recorder.start()}catch(e){}}
     break;
 
   case 'input_audio_buffer.speech_stopped':
     $('stxt').textContent='Translating...';
-    // Stop recording — triggers onstop which transcribes
-    if(recorder&&recorder.state==='recording'){try{recorder.stop()}catch(e){}}
     break;
 
   case 'error':
@@ -324,18 +314,8 @@ async function startInterpret(){
       $('dot').className='dot on';
       $('stxt').textContent=mode==='tap'?'Ready':'Listening...';
 
-      // Init recorder for user transcription
-      try{
-        recorder=new MediaRecorder(stream,{mimeType:'audio/webm;codecs=opus'});
-        recorder.ondataavailable=function(e){if(e.data.size>0)recChunks.push(e.data)};
-        recorder.onstop=function(){
-          if(recChunks.length===0)return;
-          var blob=new Blob(recChunks,{type:'audio/webm'});
-          recChunks=[];
-          if(blob.size<2000)return;
-          transcribeAudio(blob);
-        };
-      }catch(e){console.error('Recorder init:',e)}
+      // Enable transcription
+      dc.send(JSON.stringify({type:'session.update',session:{type:'realtime',input_audio_transcription:{model:'whisper-1'}}}));
 
       // Tap mode: mic off until held
       if(mode==='tap'){stream.getAudioTracks().forEach(function(t){t.enabled=false})}
@@ -376,7 +356,6 @@ async function startInterpret(){
 function endInterpret(){
   state='idle';holding=false;
   clearInterval(reinforceInt);
-  if(recorder){try{recorder.stop()}catch(e){}recorder=null}recChunks=[];
   if(dc){try{dc.close()}catch(e){}dc=null}
   if(pc){try{pc.close()}catch(e){}pc=null}
   if(stream){stream.getTracks().forEach(function(t){t.stop()});stream=null}

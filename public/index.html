@@ -340,56 +340,14 @@ function saWip(btn){
   saActiveWord=null;
 }
 
-// Audio recorder for user transcription
-let recorder=null,recChunks=[];
-function startRecorder(){
-  if(!stream)return;
-  try{
-    recorder=new MediaRecorder(stream,{mimeType:'audio/webm;codecs=opus'});
-    recorder.ondataavailable=e=>{if(e.data.size>0)recChunks.push(e.data)};
-    recorder.onstop=()=>{
-      if(recChunks.length===0)return;
-      const blob=new Blob(recChunks,{type:'audio/webm'});
-      recChunks=[];
-      if(blob.size<2000)return; // too short, probably noise
-      transcribeAudio(blob);
-    };
-  }catch(e){console.error('Recorder init failed:',e)}
-}
-
-async function transcribeAudio(blob){
-  try{
-    const res=await fetch('/transcribe',{method:'POST',headers:{'Content-Type':'audio/webm'},body:blob});
-    const d=await res.json();
-    if(d.text&&d.text.trim()){
-      const t=d.text.trim();
-      addMsg('user',t);
-      transcript.push({role:'user',text:t});
-      checkSelfAssess(t);
-      const lo=t.toLowerCase();
-      if(GOODBYE.some(p=>lo.includes(p)))bye=true;
-      checkCtx(t);
-      const conf=CONFUSE.some(s=>s.length<=4?lo===s||lo===s.replace('?',''):lo.includes(s));
-      if(conf&&dc?.readyState==='open')dc.send(JSON.stringify({type:'conversation.item.create',item:{type:'message',role:'system',content:[{type:'input_text',text:"He didn't understand. Say it again in plain English."}]}}));
-    }
-  }catch(e){console.error('Transcribe failed:',e)}
-}
-
 // Events
 function handleEvt(e){if(!e?.type)return;switch(e.type){
 case 'response.output_audio_transcript.delta':case 'response.audio_transcript.delta':if(e.delta){setSt('Luna is talking…','speak');onD(e.delta)}break;
 case 'response.output_audio_transcript.done':case 'response.audio_transcript.done':onDone();setSt(ptt?'Hold to talk':'Listening…','listen');break;
 case 'response.done':setSt(ptt?'Hold to talk':'Listening…','listen');if(bye){bye=false;setTimeout(endSession,2000)}break;
-case 'input_audio_buffer.speech_started':
-  setSt('Listening…','listen');removeSaCard();
-  // Start recording user speech
-  if(recorder&&recorder.state==='inactive'){try{recChunks=[];recorder.start()}catch(e){}}
-  break;
-case 'input_audio_buffer.speech_stopped':
-  setSt('Thinking…','');
-  // Stop recording — triggers onstop which transcribes
-  if(recorder&&recorder.state==='recording'){try{recorder.stop()}catch(e){}}
-  break;
+case 'conversation.item.input_audio_transcription.completed':{const t=e.transcript?.trim();if(!t)break;addMsg('user',t);transcript.push({role:'user',text:t});checkSelfAssess(t);const lo=t.toLowerCase();if(GOODBYE.some(p=>lo.includes(p)))bye=true;checkCtx(t);const conf=CONFUSE.some(s=>s.length<=4?lo===s||lo===s.replace('?',''):lo.includes(s));if(conf&&dc?.readyState==='open')dc.send(JSON.stringify({type:'conversation.item.create',item:{type:'message',role:'system',content:[{type:'input_text',text:"He didn't understand. Say it again in plain English."}]}}));break}
+case 'input_audio_buffer.speech_started':setSt('Listening…','listen');removeSaCard();break;
+case 'input_audio_buffer.speech_stopped':setSt('Thinking…','');break;
 case 'error':console.error('RT error:',e);setSt(e.error?.message||'Error','');break;
 }}
 
@@ -398,7 +356,8 @@ async function startSession(){state='wait';setBtn('wait');setSt('Connecting…',
 try{const sr=await fetch('/session',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});if(!sr.ok)throw new Error((await sr.json().catch(()=>({}))).error||'Server error');const sd=await sr.json();const key=sd.value;if(!key)throw new Error('No key');vocabMap=sd.vocabMastery||{};
 stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
 pc=new RTCPeerConnection();pc.ontrack=e=>{$('aud').srcObject=e.streams[0]};stream.getTracks().forEach(t=>pc.addTrack(t,stream));dc=pc.createDataChannel('oai-events');
-dc.onopen=()=>{state='live';setBtn('live');setSt('Listening…','listen');startTmr();$('modeTog').classList.add('show');startRein();startRecorder();
+dc.onopen=()=>{state='live';setBtn('live');setSt('Listening…','listen');startTmr();$('modeTog').classList.add('show');startRein();
+dc.send(JSON.stringify({type:'session.update',session:{type:'realtime',input_audio_transcription:{model:'whisper-1'}}}));
 setTimeout(()=>dc.send(JSON.stringify({type:'response.create'})),400)};
 dc.onmessage=e=>{try{handleEvt(JSON.parse(e.data))}catch(err){console.error('Parse:',err.message)}};
 const offer=await pc.createOffer();await pc.setLocalDescription(offer);const model=sd.model||'gpt-realtime-mini';
@@ -411,7 +370,7 @@ state='idle';stopTmr();clearInterval(reinI);setBtn('idle');setSt('Ready','');$('
 if(tr.length)fetch('/session/end',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({transcript:tr,duration_seconds:dur})}).then(()=>setTimeout(showRecap,3500)).catch(e=>console.warn('Save:',e.message));
 transcript=[];t0=null;bye=false;cap=false;cleanup()}
 
-function cleanup(){if(recorder){try{recorder.stop()}catch{}recorder=null}recChunks=[];if(dc){try{dc.close()}catch{}dc=null}if(pc){try{pc.close()}catch{}pc=null}if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}$('aud').srcObject=null;lunaT='';wBuf='';wEl=null;if(popup){popup.remove();popup=null}}
+function cleanup(){if(dc){try{dc.close()}catch{}dc=null}if(pc){try{pc.close()}catch{}pc=null}if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}$('aud').srcObject=null;lunaT='';wBuf='';wEl=null;if(popup){popup.remove();popup=null}}
 function go(){if(state==='idle')startSession();else if(state==='live')endSession()}
 
 // Panel
