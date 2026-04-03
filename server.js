@@ -5,6 +5,28 @@ const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 app.use(cors());
+
+// Transcribe endpoint — receives raw audio, sends to Whisper
+app.post('/transcribe', express.raw({ type: 'audio/*', limit: '5mb' }), async (req, res) => {
+  if (!req.body || req.body.length < 1000) return res.json({ text: '' });
+  try {
+    const blob = new Blob([req.body], { type: 'audio/webm' });
+    const form = new FormData();
+    form.append('file', blob, 'speech.webm');
+    form.append('model', 'whisper-1');
+    const r = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
+      body: form,
+    });
+    const d = await r.json();
+    res.json({ text: d.text || '' });
+  } catch (err) {
+    console.error('Transcribe error:', err.message);
+    res.json({ text: '' });
+  }
+});
+
 app.use(express.json({ limit: '5mb' }));
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'home.html')));
 app.use(express.static(path.join(__dirname, 'public')));
