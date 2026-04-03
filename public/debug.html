@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  <title>Luna Debug v3.1</title>
+  <title>Luna Debug</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     body{font-family:monospace;background:#1a1a2e;color:#e0e0e0;padding:16px;font-size:13px}
@@ -26,13 +26,6 @@
 <button class="btn" onclick="testInterpret()">Test /session/interpret</button>
 <button class="btn" onclick="testTranslate()">Test /translate</button>
 <button class="btn" onclick="testTranslateMsg()">Test /translate-message</button>
-
-<h2>1b. Upgrade Feature Tests</h2>
-<button class="btn" onclick="testDueCount()">Test /vocab/due-count</button>
-<button class="btn" onclick="testDueWords()">Test /vocab/due</button>
-<button class="btn" onclick="testReviseSession()">Test /session/revise</button>
-<button class="btn" onclick="testAssess()">Test /vocab/assess</button>
-<button class="btn" onclick="testVersion()">Check Version</button>
 
 <h2>2. Live Session Test</h2>
 <button class="btn go" onclick="startLive('session')">Start Luna Session</button>
@@ -121,103 +114,6 @@ async function testTranslateMsg(){
     log('STATUS: '+r.status,'ok');
     log('RESPONSE: '+JSON.stringify(d),'ok');
   }catch(e){log('FAILED: '+e.message,'err')}
-}
-
-async function testDueCount(){
-  log('Testing GET /vocab/due-count ...','info');
-  try{
-    var r=await fetch('/vocab/due-count');
-    var d=await r.json();
-    log('STATUS: '+r.status, r.ok?'ok':'err');
-    log('RESPONSE: '+JSON.stringify(d),'ok');
-    if(d.count!==undefined)log('DUE WORDS: '+d.count,'ok');
-  }catch(e){log('FAILED: '+e.message,'err')}
-}
-
-async function testDueWords(){
-  log('Testing GET /vocab/due ...','info');
-  try{
-    var r=await fetch('/vocab/due');
-    var d=await r.json();
-    log('STATUS: '+r.status, r.ok?'ok':'err');
-    log('WORDS RETURNED: '+(d?d.length:0),'ok');
-    if(d&&d.length>0){
-      for(var i=0;i<Math.min(d.length,5);i++){
-        log('  '+d[i].word+' ('+d[i].translation+') box:'+(d[i].leitner_box||'?')+' mastery:'+(d[i].mastery_score||'?'),'info');
-      }
-      if(d.length>5)log('  ...and '+(d.length-5)+' more','info');
-    }
-  }catch(e){log('FAILED: '+e.message,'err')}
-}
-
-async function testReviseSession(){
-  log('Testing POST /session/revise ...','info');
-  try{
-    var r=await fetch('/session/revise',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
-    var d=await r.json();
-    log('STATUS: '+r.status, r.ok?'ok':'err');
-    if(d.empty){log('NO WORDS DUE — session not created','warn')}
-    else if(d.value){log('GOT KEY: '+d.value.substring(0,20)+'...','ok');log('WORDS: '+JSON.stringify(d.words?.map(function(w){return w.word})),'info')}
-    else if(d.error){log('ERROR: '+JSON.stringify(d.error),'err')}
-  }catch(e){log('FAILED: '+e.message,'err')}
-}
-
-async function testAssess(){
-  log('Testing POST /vocab/assess ...','info');
-  // First get a word to test with
-  try{
-    var dr=await fetch('/vocab/due');
-    var dd=await dr.json();
-    if(!dd||dd.length===0){log('No due words to test assess with','warn');return}
-    var testWord=dd[0].word;
-    log('Testing with word: '+testWord,'info');
-    var r=await fetch('/vocab/assess',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({word:testWord,confident:true})});
-    var d=await r.json();
-    log('STATUS: '+r.status, r.ok?'ok':'err');
-    log('RESPONSE: '+JSON.stringify(d),'ok');
-    if(d.box)log('WORD "'+d.word+'" moved to Box '+d.box+' (mastery: '+d.mastery+')','ok');
-  }catch(e){log('FAILED: '+e.message,'err')}
-}
-
-async function testVersion(){
-  log('=== VERSION CHECK ===','info');
-  try{
-    var r=await fetch('/health');
-    var d=await r.json();
-    log('Server version: '+(d.version||'NOT SET — old server.js'),'warn');
-  }catch(e){log('Health check failed: '+e.message,'err')}
-  // Check if new endpoints exist
-  try{
-    var r2=await fetch('/vocab/due-count');
-    if(r2.ok)log('/vocab/due-count: EXISTS','ok');
-    else log('/vocab/due-count: MISSING ('+r2.status+')','err');
-  }catch(e){log('/vocab/due-count: FAILED','err')}
-  try{
-    var r3=await fetch('/vocab/due');
-    if(r3.ok)log('/vocab/due: EXISTS','ok');
-    else log('/vocab/due: MISSING ('+r3.status+')','err');
-  }catch(e){log('/vocab/due: FAILED','err')}
-  // Check which HTML is being served
-  try{
-    var r4=await fetch('/index.html');
-    var html=await r4.text();
-    if(html.indexOf('v3.1')>=0)log('index.html: v3.1 (CURRENT)','ok');
-    else if(html.indexOf('sa-card')>=0)log('index.html: Has self-assess but no version stamp','warn');
-    else log('index.html: OLD VERSION (no self-assess)','err');
-  }catch(e){log('Could not fetch index.html','err')}
-  try{
-    var r5=await fetch('/home.html');
-    if(r5.ok){
-      var h=await r5.text();
-      if(h.indexOf('v3.1')>=0)log('home.html: v3.1 (CURRENT)','ok');
-      else log('home.html: EXISTS but old version','warn');
-    }else{log('home.html: MISSING','err')}
-  }catch(e){log('home.html: FAILED','err')}
-  try{
-    var r6=await fetch('/revise.html');
-    if(r6.ok)log('revise.html: EXISTS','ok');
-    else log('revise.html: MISSING','err');
-  }catch(e){log('revise.html: FAILED','err')}
 }
 
 // ── Live session test ──

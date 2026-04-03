@@ -36,38 +36,17 @@
     .luna .bubble{background:var(--card);border:1px solid var(--border);border-bottom-left-radius:4px}
     .user .bubble{background:var(--accent);color:#fff;border-bottom-right-radius:4px}
 
-    #live{flex-shrink:0;min-height:20px;padding:6px 20px 4px;font-size:15px;line-height:1.5;color:var(--text3)}
+    #live{flex-shrink:0;min-height:30px;padding:6px 20px 4px;font-size:15px;line-height:1.5;color:var(--text3)}
 
-    /* Inline self-assessment card */
-    .sa-card{max-width:88%;align-self:center;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px 16px;text-align:center;animation:fadeUp .25s ease}
-    .sa-prompt{font-size:14px;color:var(--pt);font-weight:600;margin-bottom:2px}
-    .sa-trans{font-size:12px;color:var(--text3);margin-bottom:10px}
+    /* Self-assessment buttons */
+    #assess{display:none;flex-shrink:0;padding:8px 20px 4px;text-align:center}
+    #assess.show{display:block}
+    .sa-word{font-size:13px;color:var(--pt);font-style:italic;margin-bottom:6px}
     .sa-btns{display:flex;gap:10px;justify-content:center}
-    .sa-btn{padding:10px 22px;border-radius:12px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;border:none;-webkit-tap-highlight-color:transparent;transition:transform .1s}
-    .sa-btn:active{transform:scale(.92)}
+    .sa-btn{padding:10px 24px;border-radius:12px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;border:none;-webkit-tap-highlight-color:transparent}
+    .sa-btn:active{transform:scale(.95)}
     .sa-got{background:var(--green-l);color:var(--green)}
     .sa-wip{background:#FFF3E0;color:#E6A817}
-
-    .sa-result{max-width:88%;align-self:center;padding:10px 16px;border-radius:12px;text-align:center;font-size:13px;font-weight:600;animation:resultPop .3s ease}
-    .sa-result.got{background:var(--green-l);color:var(--green)}
-    .sa-result.wip{background:#FFF3E0;color:#E6A817}
-    .sa-result .sa-detail{font-size:11px;font-weight:400;margin-top:2px;opacity:.8}
-    @keyframes resultPop{0%{opacity:0;transform:scale(.9)}50%{transform:scale(1.03)}100%{opacity:1;transform:scale(1)}}
-
-    /* Completion card */
-    .complete-card{align-self:center;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px 24px;text-align:center;animation:resultPop .4s ease;max-width:300px}
-    .complete-card h3{font-family:'Instrument Serif',serif;font-size:22px;font-style:italic;font-weight:400;margin-bottom:8px}
-    .complete-stats{display:flex;gap:20px;justify-content:center;margin:12px 0}
-    .complete-stat{text-align:center}
-    .complete-num{font-size:28px;font-weight:700}
-    .complete-num.g{color:var(--green)}
-    .complete-num.w{color:#E6A817}
-    .complete-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em}
-    .complete-card a{display:inline-block;margin-top:10px;padding:10px 24px;background:var(--green);color:#fff;border-radius:12px;text-decoration:none;font-weight:600;font-size:14px}
-
-    .confetti{position:fixed;pointer-events:none;z-index:100}
-    .confetti-piece{position:absolute;width:6px;height:6px;border-radius:50%;animation:confettiFall .8s ease-out forwards}
-    @keyframes confettiFall{0%{opacity:1;transform:translate(0,0) scale(1)}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(0)}}
 
     #sbar{flex-shrink:0;padding:10px 20px;display:none;align-items:center;gap:8px;border-top:1px solid var(--border)}
     .dot{width:8px;height:8px;border-radius:50%;background:var(--text3);flex-shrink:0}
@@ -93,6 +72,13 @@
 
   <div id="chat"></div>
   <div id="live"></div>
+  <div id="assess">
+    <div class="sa-word" id="saWord"></div>
+    <div class="sa-btns">
+      <button class="sa-btn sa-got" onclick="assess(true)">&#10003; Got it</button>
+      <button class="sa-btn sa-wip" onclick="assess(false)">&#9684; Working on it</button>
+    </div>
+  </div>
 
   <div id="sbar">
     <div class="dot" id="dot"></div>
@@ -105,32 +91,11 @@
 
 <script>
 var pc=null,dc=null,stream=null,state='idle';
-var words=[],reviewedCount=0,gotCount=0,wipCount=0;
-var outputBuf='',saActiveEl=null,saActiveWord=null;
+var words=[],currentWordIdx=0;
+var lunaT='',outputBuf='';
+var assessTimeout=null;
 
 function $(id){return document.getElementById(id)}
-
-// ── Sounds ──
-var audioCtx=null;
-function getAudio(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx}
-function playTone(freq,dur,type,vol){
-  try{var a=getAudio(),o=a.createOscillator(),g=a.createGain();o.type=type||'sine';o.frequency.value=freq;g.gain.value=vol||0.15;g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+dur);o.connect(g);g.connect(a.destination);o.start();o.stop(a.currentTime+dur)}catch(e){}
-}
-function sndGot(){playTone(523,.1,'sine',.12);setTimeout(function(){playTone(659,.15,'sine',.12)},100)}
-function sndWip(){playTone(392,.2,'sine',.08)}
-function sndClick(){playTone(800,.04,'square',.05)}
-function sndComplete(){playTone(523,.12,'sine',.1);setTimeout(function(){playTone(659,.12,'sine',.1)},120);setTimeout(function(){playTone(784,.2,'sine',.1)},240)}
-
-// ── Haptics ──
-function haptic(s){try{if(navigator.vibrate){navigator.vibrate(s==='heavy'?[30]:s==='light'?[10]:[15])}}catch(e){}}
-
-// ── Confetti ──
-function doConfetti(x,y,color){
-  var c=document.createElement('div');c.className='confetti';c.style.left=x+'px';c.style.top=y+'px';
-  var cols=color==='green'?['#5A8A6A','#7BC47F','#A8E6A1','#E8F0EB']:['#E6A817','#F5D76E','#FFE8A0','#FFF3E0'];
-  for(var i=0;i<8;i++){var p=document.createElement('div');p.className='confetti-piece';var angle=Math.random()*Math.PI*2;var dist=30+Math.random()*40;p.style.setProperty('--dx',Math.cos(angle)*dist+'px');p.style.setProperty('--dy',Math.sin(angle)*dist+'px');p.style.background=cols[i%cols.length];p.style.left=Math.random()*10-5+'px';p.style.top=Math.random()*10-5+'px';c.appendChild(p)}
-  document.body.appendChild(c);setTimeout(function(){c.remove()},900);
-}
 
 // ── Display ──
 function addMsg(r,t){
@@ -139,84 +104,36 @@ function addMsg(r,t){
   m.appendChild(b);$('chat').appendChild(m);$('chat').scrollTop=$('chat').scrollHeight;
 }
 
-function updateProg(){
-  $('prog').textContent=reviewedCount+' of '+words.length+' reviewed';
+function showAssess(word){
+  $('saWord').textContent=word||'';
+  $('assess').className='show';
+  $('assess').style.display='block';
+  clearTimeout(assessTimeout);
+  assessTimeout=setTimeout(function(){hideAssess()},8000);
 }
 
-function showAssessCard(word){
-  if(saActiveEl){saActiveEl.remove();saActiveEl=null}
-  saActiveWord=word;
-  var trans='';
-  for(var i=0;i<words.length;i++){if(words[i].word===word){trans=words[i].translation||'';break}}
-
-  var card=document.createElement('div');card.className='sa-card';
-  card.innerHTML='<div class="sa-prompt">'+word+'</div>'
-    +(trans?'<div class="sa-trans">'+trans+'</div>':'')
-    +'<div class="sa-btns">'
-    +'<button class="sa-btn sa-got" onclick="assessGot(this)">&#10003; Got it</button>'
-    +'<button class="sa-btn sa-wip" onclick="assessWip(this)">&#9684; Working on it</button>'
-    +'</div>';
-  $('chat').appendChild(card);
-  $('chat').scrollTop=$('chat').scrollHeight;
-  saActiveEl=card;
-  sndClick();
+function hideAssess(){
+  $('assess').style.display='none';
+  clearTimeout(assessTimeout);
 }
 
-function assessGot(btn){
-  if(!saActiveWord)return;
-  var word=saActiveWord;saActiveWord=null;
-  var rect=btn.getBoundingClientRect();
-  doConfetti(rect.left+rect.width/2,rect.top,'green');
-  sndGot();haptic('heavy');
-  reviewedCount++;gotCount++;updateProg();
-
-  fetch('/vocab/assess',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({word:word,confident:true})})
-  .then(function(r){return r.json()}).then(function(d){
-    if(saActiveEl){
-      var box=d.box||1;var days=[0,0,1,3,14,60][box]||0;
-      saActiveEl.innerHTML='<div class="sa-result got">&#10003; Got it!'
-        +'<div class="sa-detail">Box '+box+(days>0?' \u00b7 review in '+days+' day'+(days>1?'s':''):'')+'</div></div>';
-      var el=saActiveEl;setTimeout(function(){el.remove()},2000);saActiveEl=null;
-    }
-    checkComplete();
-  }).catch(function(){if(saActiveEl){saActiveEl.remove();saActiveEl=null}});
-}
-
-function assessWip(btn){
-  if(!saActiveWord)return;
-  var word=saActiveWord;saActiveWord=null;
-  sndWip();haptic('light');
-  reviewedCount++;wipCount++;updateProg();
-
-  fetch('/vocab/assess',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({word:word,confident:false})})
-  .then(function(r){return r.json()}).then(function(d){
-    if(saActiveEl){
-      saActiveEl.innerHTML='<div class="sa-result wip">&#9684; Working on it'
-        +'<div class="sa-detail">Will come back soon</div></div>';
-      var el=saActiveEl;setTimeout(function(){el.remove()},1500);saActiveEl=null;
-    }
-    checkComplete();
-  }).catch(function(){if(saActiveEl){saActiveEl.remove();saActiveEl=null}});
-}
-
-function checkComplete(){
-  if(reviewedCount>=words.length){
-    setTimeout(function(){
-      sndComplete();haptic('heavy');
-      var card=document.createElement('div');card.className='complete-card';
-      card.innerHTML='<h3>Review Complete</h3>'
-        +'<div class="complete-stats">'
-        +'<div class="complete-stat"><div class="complete-num g">'+gotCount+'</div><div class="complete-label">Got it</div></div>'
-        +'<div class="complete-stat"><div class="complete-num w">'+wipCount+'</div><div class="complete-label">Working on it</div></div>'
-        +'</div>'
-        +'<a href="/">Done</a>';
-      $('chat').appendChild(card);
-      $('chat').scrollTop=$('chat').scrollHeight;
-    },2500);
+async function assess(confident){
+  hideAssess();
+  var word=words[currentWordIdx]?.word;
+  if(!word)return;
+  try{
+    await fetch('/vocab/assess',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({word:word,confident:confident})
+    });
+  }catch(e){console.error(e)}
+  currentWordIdx++;
+  if(currentWordIdx<words.length){
+    $('prog').textContent=(currentWordIdx+1)+' of '+words.length;
   }
 }
 
-// ── Events ──
+// ── Events — same as main Luna ──
 function handleEvt(e){
   if(!e||!e.type)return;
   switch(e.type){
@@ -238,14 +155,14 @@ function handleEvt(e){
     var it=e.transcript?e.transcript.trim():'';
     if(!it)break;
     addMsg('user',it);
-    // Show assessment card for a word from the review list
-    if(reviewedCount<words.length){
-      showAssessCard(words[reviewedCount].word);
+    // Show self-assessment for current review word
+    if(currentWordIdx<words.length){
+      showAssess(words[currentWordIdx].word);
     }
     break;
   case 'input_audio_buffer.speech_started':
     $('dot').className='dot on';$('stxt').textContent='Listening...';
-    if(saActiveEl){saActiveEl.remove();saActiveEl=null;saActiveWord=null}
+    hideAssess();
     break;
   case 'error':
     console.error('RT error:',JSON.stringify(e));
@@ -263,7 +180,7 @@ async function checkDue(){
       return;
     }
     words=d;
-    $('setupMsg').textContent=d.length+' word'+(d.length>1?'s':'')+' ready for review';
+    $('setupMsg').textContent=d.length+' word'+(d.length>1?'s':'')+' due for review';
     $('startBtn').style.display='block';
   }catch(e){
     $('setupMsg').textContent='Could not load vocabulary';
@@ -274,7 +191,7 @@ checkDue();
 // ── Session ──
 async function startRevise(){
   $('startBtn').disabled=true;$('startBtn').textContent='Connecting...';
-  reviewedCount=0;gotCount=0;wipCount=0;
+  currentWordIdx=0;
 
   try{
     var sr=await fetch('/session/revise',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
@@ -299,7 +216,7 @@ async function startRevise(){
       $('sbar').style.display='flex';
       $('dot').className='dot on';
       $('stxt').textContent='Listening...';
-      updateProg();
+      $('prog').textContent='1 of '+words.length;
 
       dc.send(JSON.stringify({type:'session.update',session:{type:'realtime',input_audio_transcription:{model:'whisper-1'}}}));
       setTimeout(function(){dc.send(JSON.stringify({type:'response.create'}))},400);
@@ -327,17 +244,17 @@ async function startRevise(){
 }
 
 function endRevise(){
-  state='idle';
+  state='idle';hideAssess();
   if(dc){try{dc.close()}catch(e){}dc=null}
   if(pc){try{pc.close()}catch(e){}pc=null}
   if(stream){stream.getTracks().forEach(function(t){t.stop()});stream=null}
   $('aud').srcObject=null;
-  $('chat').style.display='none';$('sbar').style.display='none';
+  $('chat').style.display='none';$('sbar').style.display='none';$('assess').style.display='none';
   $('setup').style.display='flex';
   $('startBtn').disabled=false;$('startBtn').textContent='Start Review';
-  $('chat').innerHTML='';$('prog').textContent='';$('live').textContent='';
-  outputBuf='';words=[];reviewedCount=0;gotCount=0;wipCount=0;
-  saActiveEl=null;saActiveWord=null;
+  $('chat').innerHTML='';$('prog').textContent='';
+  outputBuf='';words=[];currentWordIdx=0;
+  // Refresh due count
   checkDue();
 }
 </script>
